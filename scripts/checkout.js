@@ -254,7 +254,7 @@ const i18n = {
 
 // Validation patterns (RegExp – cannot be serialised as JSON)
 i18n.validationPatterns = {
-  zipCodeRegex: /^(?:\d{5}(?:-\d{4})?|[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d|\d{4}|[A-Za-z]{1,2}\d[A-Za-z\d]?\s?\d[ABD-HJLN-UW-Z]{2})$/,
+  zipCodeRegex: /^(?:\d{5}(?:-\d{4})?|[A-Za-z]\d[A-Za-z](?:[ -]?\d[A-Za-z]\d)?|\d{4}|[A-Za-z]{1,2}\d[A-Za-z\d]?\s?\d[ABD-HJLN-UW-Z]{2})$/,
   nameRegex: /\b([A-ZÀ-ÿ][-,a-zÀ-ÿ. ']+[ ]*)+$/i,
 };
 
@@ -629,7 +629,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "jqCL2xUqo_BtcWNni_AkuO9HnsKDGMjDhsq7ogONeRRXvzhEulAHY1VoPFY3pBUA",
+    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -655,7 +655,8 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
       {
         offer_id: getVrioOfferIdByProductId(selectedProduct.id) ?? DEFAULT_OFFER_ID,
         order_offer_quantity: 1,
-        item_id: Number(selectedProduct.id)
+        item_id: Number(selectedProduct.id),
+        mainOffer: true
       }
     ],
     shipping_profile_id: shippingProfileId,
@@ -1782,7 +1783,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "jqCL2xUqo_BtcWNni_AkuO9HnsKDGMjDhsq7ogONeRRXvzhEulAHY1VoPFY3pBUA",
+    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -1799,7 +1800,7 @@ async function createOrderViaPaypal(isExpress = false) {
     bill_fname: billingFirstName || firstName,
     bill_lname: billingLastName || lastName,
     bill_address1: billingAddress1 || shippingAddress1,
-    bill_address2: billingAddress2 || shippingAddress2,
+    bill_address2: billingAddress2,
     bill_city: billingCity || shippingCity,
     bill_state: normalizedBillState || normalizedShipState,
     bill_zipcode: billingZip || shippingZip,
@@ -1812,6 +1813,7 @@ async function createOrderViaPaypal(isExpress = false) {
         offer_id: getVrioOfferIdByProductId(selectedProduct.id) ?? DEFAULT_OFFER_ID,
         order_offer_quantity: 1,
         item_id: Number(selectedProduct.id),
+        mainOffer: true
       },
     ],
     shipping_profile_id: shippingProfileId,
@@ -2080,7 +2082,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "jqCL2xUqo_BtcWNni_AkuO9HnsKDGMjDhsq7ogONeRRXvzhEulAHY1VoPFY3pBUA",
+    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2096,7 +2098,7 @@ async function createOrderViaKlarna() {
     bill_fname: billingFirstName || firstName,
     bill_lname: billingLastName || lastName,
     bill_address1: billingAddress1 || shippingAddress1,
-    bill_address2: billingAddress2 || shippingAddress2,
+    bill_address2: billingAddress2,
     bill_city: billingCity || shippingCity,
     bill_state: normalizedBillState || normalizedShipState,
     bill_zipcode: billingZip || shippingZip,
@@ -2185,7 +2187,8 @@ async function createOrderViaKlarna() {
       offer_id:
         selectedProductOfferData?.offerId ?? DEFAULT_OFFER_ID,
       order_offer_quantity: 1,
-      item_id: Number(selectedProduct.id)
+      item_id: Number(selectedProduct.id),
+      mainOffer: true
     });
   }
 
@@ -2458,7 +2461,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "jqCL2xUqo_BtcWNni_AkuO9HnsKDGMjDhsq7ogONeRRXvzhEulAHY1VoPFY3pBUA",
+    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2478,7 +2481,7 @@ async function createOrderViaCreditCard() {
     bill_fname: billingFirstName || firstName,
     bill_lname: billingLastName || lastName,
     bill_address1: billingAddress1 || shippingAddress1,
-    bill_address2: billingAddress2 || shippingAddress2,
+    bill_address2: billingAddress2,
     bill_city: billingCity || shippingCity,
     bill_state: normalizedBillState || normalizedShipState,
     bill_zipcode: billingZip || shippingZip,
@@ -2500,6 +2503,7 @@ async function createOrderViaCreditCard() {
         offer_id: getVrioOfferIdByProductId(selectedProduct.id) ?? DEFAULT_OFFER_ID,
         order_offer_quantity: 1,
         item_id: Number(selectedProduct.id),
+        mainOffer: true
       },
     ],
     shipping_profile_id: shippingProfileId,
@@ -3919,6 +3923,25 @@ if (typeof validateAndSendToKlaviyo === "function") {
           field.addEventListener("change", async () => await validate.revalidateField(selector));
         }
         field.addEventListener("blur", async () => await validate.revalidateField(selector));
+        field.addEventListener("animationstart", async (e) => {
+          if (e.animationName === "onAutoFillStart") {
+            try {
+              const isValid = await validate.revalidateField(selector);
+              if (isValid) {
+                field.classList.add("just-validate-success-field");
+                if (field.parentElement && !field.parentElement.querySelector(".autofill-tick")) {
+                  const tick = document.createElement("img");
+                  tick.className = "autofill-tick";
+                  tick.src = "https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/tick-input.webp";
+                  field.parentElement.style.position = "relative";
+                  field.parentElement.appendChild(tick);
+                }
+              }
+            } catch (_) {}
+          } else if (e.animationName === "onAutoFillCancel") {
+            field.parentElement?.querySelector(".autofill-tick")?.remove();
+          }
+        });
       });
     }
 
@@ -4009,6 +4032,7 @@ if (typeof validateAndSendToKlaviyo === "function") {
         selector: "[name='billingZip']",
         rules: [
           { rule: "required", errorMessage: i18n.validation.billingZipRequired },
+          { rule: "customRegexp", value: i18n.validationPatterns.zipCodeRegex, errorMessage: i18n.validation.zipInvalid },
         ],
       },
     ];
@@ -4550,7 +4574,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "jqCL2xUqo_BtcWNni_AkuO9HnsKDGMjDhsq7ogONeRRXvzhEulAHY1VoPFY3pBUA",
+        pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
@@ -4996,7 +5020,6 @@ function handleFreeGiftParam(allProducts) {
     const discountFromUrlParam = parseInt(sessionStorage.getItem('p_dc'));
     const hasTenBucksOff = sessionStorage.getItem('p_tenbucksoff') === 'yes';
     if (discountFromUrlParam || hasTenBucksOff) {
-      applyDiscount(10);
       applyDiscount(discountFromUrlParam, hasTenBucksOff);
     }
 
@@ -5039,12 +5062,14 @@ function handleFreeGiftParam(allProducts) {
         }
       });
 
-      if (isTenBucksDiscount) {
-        currentProduct.price =
-          (currentProduct.price * currentProduct.quantity - 10) / currentProduct.quantity;
-      } else {
-        currentProduct.price =
-          currentProduct.price - (currentProduct.price * discountPercent) / 100;
+      if (currentProduct) {
+        if (isTenBucksDiscount) {
+          currentProduct.price =
+            (currentProduct.price * currentProduct.quantity - 10) / currentProduct.quantity;
+        } else {
+          currentProduct.price =
+            currentProduct.price - (currentProduct.price * discountPercent) / 100;
+        }
       }
 
       const discountContainers = document.querySelectorAll(
@@ -5208,8 +5233,9 @@ function handleFreeGiftParam(allProducts) {
         if (shouldSkipRecurring && isRecurringByProductId(productObject.id)) {
           return;
         }
-        hasItems = true;
         const product = prices.find((p) => p.id === Number(productObject.id));
+        if (!product) return;
+        hasItems = true;
         const productElement = getProductElement(productObject.id);
         const customName =
           productElement.dataset.customProductName ||
