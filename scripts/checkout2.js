@@ -373,7 +373,7 @@ async function returnPaypal() {
     const responseDataCustomer = await responseCustomer.json();
     const orderData = JSON.parse(sessionStorage.getItem("orderData"));
     const body = {
-      pageId: "bxMH1naycNcIHHi5jZcTprHxxWTR7nK91JcTScrmkNbLpymoLBeZbjcg_RQTlEV4",
+      pageId: "4jM1JlazAwajs9m-mqP3Mm2M0c3qef1kc6HCB5aDqDSxRIZuo0wj7KpCjxiUexg_",
       action: "process",
       campaign_id: CAMPAIGN_ID,
       connection_id: 1,
@@ -1091,7 +1091,7 @@ async function createOrderViaPaypal() {
   const [exp_month, exp_year] = expirationDate.split("/");
   const billShipSameCheckbox = document.getElementById("billShipSame");
   const orderData = {
-    pageId: "bxMH1naycNcIHHi5jZcTprHxxWTR7nK91JcTScrmkNbLpymoLBeZbjcg_RQTlEV4",
+    pageId: "4jM1JlazAwajs9m-mqP3Mm2M0c3qef1kc6HCB5aDqDSxRIZuo0wj7KpCjxiUexg_",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -1240,7 +1240,7 @@ async function createOrderViaCreditCard() {
   const [exp_month, exp_year] = expirationDate.split("/");
   const billShipSameCheckbox = document.getElementById("billShipSame");
   const orderData = {
-    pageId: "bxMH1naycNcIHHi5jZcTprHxxWTR7nK91JcTScrmkNbLpymoLBeZbjcg_RQTlEV4",
+    pageId: "4jM1JlazAwajs9m-mqP3Mm2M0c3qef1kc6HCB5aDqDSxRIZuo0wj7KpCjxiUexg_",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -1420,7 +1420,7 @@ async function createOrderViaCreditCard() {
   async function sendLead() {
   const formData = new FormData(formEl);
   const orderData = {
-    pageId: "bxMH1naycNcIHHi5jZcTprHxxWTR7nK91JcTScrmkNbLpymoLBeZbjcg_RQTlEV4",
+    pageId: "4jM1JlazAwajs9m-mqP3Mm2M0c3qef1kc6HCB5aDqDSxRIZuo0wj7KpCjxiUexg_",
     connection_id: 1,
     campaignId: CAMPAIGN_ID,
     first_name: formData.get("firstName"),
@@ -1789,7 +1789,7 @@ formEl = document.querySelector("[data-payment-form]");
           await validateField(field);
         }, 500);
       });
-      field.addEventListener("blur", (e) => { if (e.isTrusted) validateField(field); });
+      field.addEventListener("blur", () => validateField(field));
     });
   }
  // Just Validate validation for each field in the form

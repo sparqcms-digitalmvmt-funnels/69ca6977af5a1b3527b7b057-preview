@@ -77,12 +77,15 @@ function getNextPageSlugForRedirect() {
   return "/";
 }
 
-let isTest = JSON.parse(sessionStorage.getItem("test"));
+let isTest = sessionStorage.getItem("test");
 
-if (isTest === null && isTest !== false) {
+if (isTest === null) {
   isTest = true;
-  sessionStorage.setItem("test", isTest);
+  sessionStorage.setItem("test", String(isTest));
+} else {
+  isTest = isTest === "true";
 }
+
 const removeKlarnaParamsFromUrl = (urlValue) => {
   const sourceUrl = urlValue || window.location.href;
   const url = new URL(sourceUrl, window.location.origin);
@@ -629,7 +632,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "1t9nMVq10-JVRNG-viSWgFFqUGQf8o18tdCPXrGwTaPPf53DfC-up8NnN8AClReJ",
+    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1783,7 +1786,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "1t9nMVq10-JVRNG-viSWgFFqUGQf8o18tdCPXrGwTaPPf53DfC-up8NnN8AClReJ",
+    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2082,7 +2085,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "1t9nMVq10-JVRNG-viSWgFFqUGQf8o18tdCPXrGwTaPPf53DfC-up8NnN8AClReJ",
+    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2461,7 +2464,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "1t9nMVq10-JVRNG-viSWgFFqUGQf8o18tdCPXrGwTaPPf53DfC-up8NnN8AClReJ",
+    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -3922,7 +3925,7 @@ if (typeof validateAndSendToKlaviyo === "function") {
         if (field.tagName === "SELECT") {
           field.addEventListener("change", async () => await validate.revalidateField(selector));
         }
-        field.addEventListener("blur", async (e) => { if (e.isTrusted) await validate.revalidateField(selector); });
+        field.addEventListener("blur", async () => await validate.revalidateField(selector));
       });
     }
 
@@ -4555,7 +4558,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "1t9nMVq10-JVRNG-viSWgFFqUGQf8o18tdCPXrGwTaPPf53DfC-up8NnN8AClReJ",
+        pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
