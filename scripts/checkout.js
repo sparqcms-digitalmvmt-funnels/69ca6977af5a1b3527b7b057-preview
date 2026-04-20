@@ -629,7 +629,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
+    pageId: "4qCj4Hf1PsNosn_2K62CBeb-RZuRH-GSjPpp5XztBG9jgRZYpGtKInoqsgwKQgxI",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1783,7 +1783,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
+    pageId: "4qCj4Hf1PsNosn_2K62CBeb-RZuRH-GSjPpp5XztBG9jgRZYpGtKInoqsgwKQgxI",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2082,7 +2082,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
+    pageId: "4qCj4Hf1PsNosn_2K62CBeb-RZuRH-GSjPpp5XztBG9jgRZYpGtKInoqsgwKQgxI",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2461,7 +2461,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
+    pageId: "4qCj4Hf1PsNosn_2K62CBeb-RZuRH-GSjPpp5XztBG9jgRZYpGtKInoqsgwKQgxI",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -3922,26 +3922,7 @@ if (typeof validateAndSendToKlaviyo === "function") {
         if (field.tagName === "SELECT") {
           field.addEventListener("change", async () => await validate.revalidateField(selector));
         }
-        field.addEventListener("blur", async () => await validate.revalidateField(selector));
-        field.addEventListener("animationstart", async (e) => {
-          if (e.animationName === "onAutoFillStart") {
-            try {
-              const isValid = await validate.revalidateField(selector);
-              if (isValid) {
-                field.classList.add("just-validate-success-field");
-                if (field.parentElement && !field.parentElement.querySelector(".autofill-tick")) {
-                  const tick = document.createElement("img");
-                  tick.className = "autofill-tick";
-                  tick.src = "https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/tick-input.webp";
-                  field.parentElement.style.position = "relative";
-                  field.parentElement.appendChild(tick);
-                }
-              }
-            } catch (_) {}
-          } else if (e.animationName === "onAutoFillCancel") {
-            field.parentElement?.querySelector(".autofill-tick")?.remove();
-          }
-        });
+        field.addEventListener("blur", async (e) => { if (e.isTrusted) await validate.revalidateField(selector); });
       });
     }
 
@@ -4574,7 +4555,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "ZQSxMBBA47hoi7LOc8rZEWJLD0mjS6WkjNdV5b58QkxAK3Z9BXf4Of7lnrJAoOpE",
+        pageId: "4qCj4Hf1PsNosn_2K62CBeb-RZuRH-GSjPpp5XztBG9jgRZYpGtKInoqsgwKQgxI",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
