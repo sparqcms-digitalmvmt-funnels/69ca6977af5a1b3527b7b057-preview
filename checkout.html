@@ -84,7 +84,7 @@ if (localStorage.getItem('sK_r')) {
 const route = async () => {
   if (localStorage.getItem('sK_r')) return JSON.parse(localStorage.getItem('sK_r'));
   const sessionId = MVMT.getSessionId() || localStorage.getItem("mvmt_session_id") || "";
-  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177668992180423&sessionId='+sessionId;
+  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177669228813967&sessionId='+sessionId;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -6127,6 +6127,15 @@ catch (e) {
     </script>
     <script>
     
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 
 var app_config = {
     valid_class: 'no-error',
@@ -6629,14 +6638,23 @@ function arrangeAddress(e) {
                     ];
                     if (window.validate && window.validate.revalidateField) {
                         selectors.forEach(function (sel) {
-                            try {
-                                window.validate.revalidateField(sel);
-                                const field = document.querySelector(sel);
-                                if (field) {
-                                    field.classList.remove('error');
+                            return __awaiter(this, void 0, void 0, function* () {
+                                try {
+                                    const isValid = yield window.validate.revalidateField(sel);
+                                    const field = document.querySelector(sel);
+                                    if (field) {
+                                        if (isValid) {
+                                            field.classList.remove('error');
+                                            field.classList.remove('is-invalid');
+                                            field.classList.add('just-validate-success-field');
+                                        }
+                                        else {
+                                            field.classList.remove('just-validate-success-field');
+                                        }
+                                    }
                                 }
-                            }
-                            catch (e) { }
+                                catch (e) { }
+                            });
                         });
                     }
                 }, 700));
