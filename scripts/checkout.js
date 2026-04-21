@@ -632,7 +632,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
+    pageId: "r2szB_xMXeN8Gt23z1UP8inmd02hNA6M0CSnHFyjObCYvQVszI4vzQ6FlvP2ceB5",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1786,7 +1786,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
+    pageId: "r2szB_xMXeN8Gt23z1UP8inmd02hNA6M0CSnHFyjObCYvQVszI4vzQ6FlvP2ceB5",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2085,7 +2085,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
+    pageId: "r2szB_xMXeN8Gt23z1UP8inmd02hNA6M0CSnHFyjObCYvQVszI4vzQ6FlvP2ceB5",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2464,7 +2464,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
+    pageId: "r2szB_xMXeN8Gt23z1UP8inmd02hNA6M0CSnHFyjObCYvQVszI4vzQ6FlvP2ceB5",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -4459,6 +4459,55 @@ const upsellControls = document.querySelectorAll(
 
 onPaymentMethodChange();
 await initializeFormValidation();
+
+(function ensurePreloaderExists() {
+    if (document.querySelector('[data-preloader]')) return;
+    const loaderOverlay = document.createElement('div');
+    loaderOverlay.setAttribute('data-preloader', '');
+    document.body.appendChild(loaderOverlay);
+
+    const loader = document.createElement('div');
+    loader.classList.add('loader');
+    loaderOverlay.appendChild(loader);
+
+    const loaderStyles = `
+        [data-preloader] {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.3);
+            z-index: 9999;
+        }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border-bottom-color: transparent !important;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+            margin-top: 22px;
+            border: 5px solid rgb(18, 76, 117);
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    `;
+    document.head.insertAdjacentHTML('beforeend', `<style>${loaderStyles}</style>`);
+})();
+
 });
 
 async function returnPaypal() {
@@ -4558,7 +4607,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "VsBXZjC6I0wAcS5Vu-VkKYED5Zc-7iTTpW_AIa_YWTBnb50F0xWRH2RXibD9bnFp",
+        pageId: "r2szB_xMXeN8Gt23z1UP8inmd02hNA6M0CSnHFyjObCYvQVszI4vzQ6FlvP2ceB5",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
