@@ -84,7 +84,7 @@ if (localStorage.getItem('sK_r')) {
 const route = async () => {
   if (localStorage.getItem('sK_r')) return JSON.parse(localStorage.getItem('sK_r'));
   const sessionId = MVMT.getSessionId() || localStorage.getItem("mvmt_session_id") || "";
-  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177685058814645&sessionId='+sessionId;
+  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177685662334347&sessionId='+sessionId;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -4387,7 +4387,56 @@ h3.nw-txt, .grp-bx-text1, label.expship.ml-0.mb-0 {
     productMainImg.setAttribute("src", sideImgSrc);
     productSideImg.setAttribute("src", mainImgSrc);
   });
-});</script><script>window.dataLayer = window.dataLayer || [];
+});</script><script>function parseTimeString(timeStr) {
+    const parts = timeStr.split(":").map(Number);
+    if (parts.length === 3) {
+        const [h, m, s] = parts;
+        return h * 3600 + m * 60 + s;
+    } else if (parts.length === 2) {
+        const [m, s] = parts;
+        return m * 60 + s;
+    }
+    return 0;
+}
+
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) {
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(
+            2,
+            "0"
+        )}:${String(s).padStart(2, "0")}`;
+    } else {
+        return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+}
+
+function startFomoTimers() {
+    const timerElements = document.querySelectorAll("[data-timer]");
+
+    timerElements.forEach((el) => {
+        let timeLeft = parseTimeString(el.textContent.trim());
+
+        if (timeLeft <= 0) return;
+
+        const interval = setInterval(() => {
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+                el.textContent = "00:00";
+                el.classList.add("expired"); // Optional: mark as expired
+                return;
+            }
+
+            timeLeft--;
+            el.textContent = formatTime(timeLeft);
+        }, 1000);
+    });
+}
+
+startFomoTimers()
+</script><script>window.dataLayer = window.dataLayer || [];
 function gtag(){ dataLayer.push(arguments); }
 (function () {
   var s = document.createElement('script');
@@ -6057,9 +6106,9 @@ catch (e) {
     var timerElements = document.querySelectorAll("[data-timer]:not([data-fomo-timer-init])");
     timerElements.forEach(function (el) {
       if (el.hasAttribute("data-fomo-timer-init")) return;
-      el.setAttribute("data-fomo-timer-init", "");
       var timeLeft = parseTimeString(el.textContent.trim());
       if (timeLeft <= 0) return;
+      el.setAttribute("data-fomo-timer-init", "");
       var interval = setInterval(function () {
         if (timeLeft <= 0) {
           clearInterval(interval);
@@ -6135,6 +6184,7 @@ catch (e) {
     <script>
     
 
+var _autocompleteConfig = (window && window.ADDRESS_AUTOCOMPLETE_CONFIG) || {};
 var app_config = {
     valid_class: 'no-error',
     error_class: 'has-error',
@@ -6148,8 +6198,17 @@ var app_config = {
     dev_mode: 'N',
     show_validation_errors: 'modal',
     allowed_tc: '8"m4l4d4J454k454O0lv8sm"l"d7J756k650O0l080maled"J"51k750O0l080m0l0d][r1j4V4H4q4h4k4R4X|Niraj,V3H2q2h1k0R0X0N0r|jmVxH,q4h4k2R0X0N0r0j0V"H',
-    allowed_country_codes: ['CA', 'US', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT'],
-    countries: {
+    allowed_country_codes: _autocompleteConfig.allowedCountryCodes || [
+        'CA',
+        'US',
+        'GB',
+        'AU',
+        'DE',
+        'FR',
+        'ES',
+        'IT',
+    ],
+    countries: _autocompleteConfig.countries || {
         CA: {
             name: 'Canada',
             states: {
@@ -6232,7 +6291,7 @@ var app_config = {
             },
         },
     },
-    country_lang_mapping: {
+    country_lang_mapping: _autocompleteConfig.countryLangMapping || {
         US: { state: 'State:', zip: 'Zip Code:' },
         GB: { state: 'County:', zip: 'Postal Code:' },
         CA: { state: 'Province:', zip: 'Postal Code:' },
@@ -6249,13 +6308,19 @@ var app_config = {
     disable_trialoffer_cardexp: true,
     enable_csrf_token: false,
 };
-var restricted_countries = 'US,CA,GB,AU,DE,FR,ES,IT';
+var restricted_countries = (_autocompleteConfig.allowedCountryCodes || [
+    'US',
+    'CA',
+    'GB',
+    'AU',
+    'DE',
+    'FR',
+    'ES',
+    'IT',
+]).join(',');
 var GOOGLE_PLACES_API_KEY = (window && window.GOOGLE_PLACES_API_KEY) || '';
-var ADDRESS_AUTOCOMPLETE_LANGUAGE = 'en';
-var ADDRESS_AUTOCOMPLETE_REGION_CODES = (window &&
-    window.ADDRESS_AUTOCOMPLETE_CONFIG &&
-    window.ADDRESS_AUTOCOMPLETE_CONFIG.restrictedCountries) ||
-    restricted_countries.split(',');
+var ADDRESS_AUTOCOMPLETE_LANGUAGE = _autocompleteConfig.language || 'en';
+var ADDRESS_AUTOCOMPLETE_REGION_CODES = _autocompleteConfig.restrictedCountries || restricted_countries.split(',');
 var oldAddressSelectValName, addressFinder, addressSelect, oldAddressSelectVal, selector, components, street_address, address, city, state, country, availableCountry, postal_code, availableStates, dev_mode = app_config.dev_mode, candidateStates = [];
 var addressAutocompleteDebounceMs = 300;
 function createSessionToken() {
@@ -6611,7 +6676,7 @@ function arrangeAddress(e) {
                             return;
                         }
                         if (stateEl && stateEl.tagName === 'INPUT') {
-                            stateEl.value = selectedState;
+                            stateEl.value = stateName || selectedState;
                             stateEl.dispatchEvent(new Event('input', { bubbles: true }));
                             stateEl.dispatchEvent(new Event('blur', { bubbles: true }));
                             return;
