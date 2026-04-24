@@ -136,6 +136,7 @@ const i18n = {
     "systemErrorOffer": "There was a problem with this offer. Please contact support or try again later.",
     "systemErrorGeneric": "Something went wrong processing your order. Please try again or contact support if the problem persists.",
     "klarnaNotAvailableRecurring": "Klarna is not available for recurring products.",
+    "klarnaNotAvailable": "Klarna is not available.",
     "klarnaSubscriptionsNotSupported": "Subscriptions are not supported with Klarna",
     "klarnaOrderFailed": "Something went wrong creating the order, please try again",
     "klarnaProcessingFailed": "Something went wrong processing your order, please try again",
@@ -242,19 +243,10 @@ const mergeWithSupportedAddressCountries = (rawCountries = []) => {
 const getCountries = () => {
   return mergeWithSupportedAddressCountries(
     campaignInfo.countries || [
-      {
-        iso_numeric: 840,
-        calling_code: '1',
-        id: 223,
-        name: 'United States of America',
-        iso_2: 'US',
-        iso_3: 'USA',
-      },
+      i18n.fallbackCountry,
     ],
   );
 };
-
-let countriesStatesCache;
 
 document.addEventListener("DOMContentLoaded", () => {
   renderCheckoutCart();
@@ -381,7 +373,7 @@ async function returnPaypal() {
     const responseDataCustomer = await responseCustomer.json();
     const orderData = JSON.parse(sessionStorage.getItem("orderData"));
     const body = {
-      pageId: "_Wov1mn9xFPdRnGGF0cxMQCjKqrUMfWprYy1XPDS-FBiBZoGDtnVlz6u04a6Tkcb",
+      pageId: "-fn96vuleXVGlbpY9qIr6wsCVi-XsKxf1b4dRi7l_kw5YmgI5rYBkxEv2OxBmghV",
       action: "process",
       campaign_id: CAMPAIGN_ID,
       connection_id: 1,
@@ -1099,7 +1091,7 @@ async function createOrderViaPaypal() {
   const [exp_month, exp_year] = expirationDate.split("/");
   const billShipSameCheckbox = document.getElementById("billShipSame");
   const orderData = {
-    pageId: "_Wov1mn9xFPdRnGGF0cxMQCjKqrUMfWprYy1XPDS-FBiBZoGDtnVlz6u04a6Tkcb",
+    pageId: "-fn96vuleXVGlbpY9qIr6wsCVi-XsKxf1b4dRi7l_kw5YmgI5rYBkxEv2OxBmghV",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -1248,7 +1240,7 @@ async function createOrderViaCreditCard() {
   const [exp_month, exp_year] = expirationDate.split("/");
   const billShipSameCheckbox = document.getElementById("billShipSame");
   const orderData = {
-    pageId: "_Wov1mn9xFPdRnGGF0cxMQCjKqrUMfWprYy1XPDS-FBiBZoGDtnVlz6u04a6Tkcb",
+    pageId: "-fn96vuleXVGlbpY9qIr6wsCVi-XsKxf1b4dRi7l_kw5YmgI5rYBkxEv2OxBmghV",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -1428,7 +1420,7 @@ async function createOrderViaCreditCard() {
   async function sendLead() {
   const formData = new FormData(formEl);
   const orderData = {
-    pageId: "_Wov1mn9xFPdRnGGF0cxMQCjKqrUMfWprYy1XPDS-FBiBZoGDtnVlz6u04a6Tkcb",
+    pageId: "-fn96vuleXVGlbpY9qIr6wsCVi-XsKxf1b4dRi7l_kw5YmgI5rYBkxEv2OxBmghV",
     connection_id: 1,
     campaignId: CAMPAIGN_ID,
     first_name: formData.get("firstName"),

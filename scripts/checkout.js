@@ -231,6 +231,7 @@ const i18n = {
     "systemErrorOffer": "There was a problem with this offer. Please contact support or try again later.",
     "systemErrorGeneric": "Something went wrong processing your order. Please try again or contact support if the problem persists.",
     "klarnaNotAvailableRecurring": "Klarna is not available for recurring products.",
+    "klarnaNotAvailable": "Klarna is not available.",
     "klarnaSubscriptionsNotSupported": "Subscriptions are not supported with Klarna",
     "klarnaOrderFailed": "Something went wrong creating the order, please try again",
     "klarnaProcessingFailed": "Something went wrong processing your order, please try again",
@@ -339,6 +340,28 @@ const getPrices = () => {
 };
 
 const SUPPORTED_ADDRESS_COUNTRIES = [{"name":"United States of America","iso_2":"US"},{"name":"Canada","iso_2":"CA"},{"name":"United Kingdom","iso_2":"GB"},{"name":"Australia","iso_2":"AU"},{"name":"Germany","iso_2":"DE"},{"name":"France","iso_2":"FR"},{"name":"Spain","iso_2":"ES"},{"name":"Italy","iso_2":"IT"}];
+
+const mergeWithSupportedAddressCountries = (rawCountries = []) => {
+  const mergedCountries = new Map();
+
+  (Array.isArray(rawCountries) ? rawCountries : []).forEach((country) => {
+    const iso2 = String(country?.iso_2 || country?.code || country?.iso2 || "").toUpperCase();
+    if (!iso2) return;
+    mergedCountries.set(iso2, {
+      ...country,
+      iso_2: iso2,
+      name: country?.name || country?.countryName || iso2,
+    });
+  });
+
+  SUPPORTED_ADDRESS_COUNTRIES.forEach((country) => {
+    if (!mergedCountries.has(country.iso_2)) {
+      mergedCountries.set(country.iso_2, country);
+    }
+  });
+
+  return Array.from(mergedCountries.values());
+};
 
 const getCountries = () => {
   // Campaign countries are the source of truth
@@ -609,7 +632,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "LzJbbpijImjQKIwNUkxQGQk0nQuxqmaEpVcH94SCG1nseJdC0rRBD-PDl1KagA8-",
+    pageId: "DFIugyu7RlzBAEx1niDSjfoM5BqqtwhpskJbQJV7nGovEfIHVAd6UaOlLuyj0bBF",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1686,7 +1709,7 @@ function getInPurchaseUpsells() {
         };
       }
       const isInput = product.tagName.toLowerCase() === "input";
-      const input = product.querySelector("input");    
+      const input = product.querySelector("input");
       const isBundledInActiveCard =
         product.hasAttribute('data-bundled-upsell') &&
         !!product.closest(".product-card-active");
@@ -1763,7 +1786,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "LzJbbpijImjQKIwNUkxQGQk0nQuxqmaEpVcH94SCG1nseJdC0rRBD-PDl1KagA8-",
+    pageId: "DFIugyu7RlzBAEx1niDSjfoM5BqqtwhpskJbQJV7nGovEfIHVAd6UaOlLuyj0bBF",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2007,7 +2030,7 @@ async function createOrderViaPaypal(isExpress = false) {
 
 async function createOrderViaKlarna() {
   if (!isKlarnaEnabled) {
-    showError("Klarna is not available");
+    showError(i18n.errors.klarnaNotAvailable);
     return;
   }
 
@@ -2062,7 +2085,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "LzJbbpijImjQKIwNUkxQGQk0nQuxqmaEpVcH94SCG1nseJdC0rRBD-PDl1KagA8-",
+    pageId: "DFIugyu7RlzBAEx1niDSjfoM5BqqtwhpskJbQJV7nGovEfIHVAd6UaOlLuyj0bBF",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2187,6 +2210,7 @@ async function createOrderViaKlarna() {
   saveProductCustomData(selectedProductElement);
   let { product, quantity } =
     getBindedShippableProductAndQuantity(selectedProductElement) ?? {};
+    
   if (product) {
     const bindedOfferData = getVrioOfferInfoByProductId(product.id);
     if (!bindedOfferData?.isRecurringOffer) {
@@ -2440,7 +2464,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "LzJbbpijImjQKIwNUkxQGQk0nQuxqmaEpVcH94SCG1nseJdC0rRBD-PDl1KagA8-",
+    pageId: "DFIugyu7RlzBAEx1niDSjfoM5BqqtwhpskJbQJV7nGovEfIHVAd6UaOlLuyj0bBF",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2707,6 +2731,8 @@ async function createOrderViaCreditCard() {
           }
           return;
         }
+
+        showPreloader(false);
 
         var msg = (result && result.error && result.error.message) || (result && result.message) || i18n.errors.creditCardOrderFailed;
         msg = humanizeCountryError(msg);
@@ -2998,7 +3024,7 @@ const getStates = async (countryIso2Code) => {
       (c) => String(c.code || c.iso_2 || c.iso2 || '').toUpperCase() === iso2
     );
     const states = (found && Array.isArray(found.states)) ? found.states : [];
-    return states.map(s => ({ iso2: s.iso2 || s.code || s.iso_2 || s.abbr || '', name: s.name || s.label || '' }));
+    return states.map(s => ({ iso2: s.code || s.iso_2 || s.abbr || s.name || s.label || '', name: s.name || s.label || '' }));    
   } catch (error) {
     console.error("Error getting states", error);
     return [];
@@ -3090,7 +3116,7 @@ const populateStates = async (stateSelector, countryIso2Code) => {
 
   states.forEach((state) => {
     const option = document.createElement("option");
-    option.value = state.iso2 || '';
+    option.value = state.iso2 || state.name || '';
     option.innerText = state.name;
     stateEl.appendChild(option);
   });
@@ -3123,8 +3149,58 @@ const populateCountries = (countryEl) => {
   }
 };
 
-// After the DOM is loaded, we can start to interact with the elements
 document.addEventListener("DOMContentLoaded", async () => {
+  
+(function ensurePreloaderExists() {
+    if (document.querySelector('[data-preloader]')) return;
+    const loaderOverlay = document.createElement('div');
+    loaderOverlay.setAttribute('data-preloader', '');
+    loaderOverlay.innerHTML = `
+        <div class="loader"></div>
+        <p>Processing...</p>
+    `;
+
+    const loaderStyles = `
+        [data-preloader] {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            z-index: 9999;
+        }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border-bottom-color: transparent !important;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+            margin-top: 22px;
+            border: 5px solid rgb(18, 76, 117);
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    `;
+    document.head.insertAdjacentHTML('beforeend', `<style>${loaderStyles}</style>`);
+    document.body.appendChild(loaderOverlay);
+})();
+
   try {
     initVrioWallets();
   } catch (error) {
@@ -4433,6 +4509,290 @@ const upsellControls = document.querySelectorAll(
 
 onPaymentMethodChange();
 await initializeFormValidation();
+
+(function ensureCvvToolTipExists() {
+  let cvvToolTipEl = document.querySelector(".cvvTooltip");
+  let cvvOverlay = document.getElementById("cvvOverlay");
+
+  (function ensureToolTipExists() {
+    if (cvvToolTipEl) return;
+    const cvvField = document.querySelector("[data-card-cvv]");
+    const toolTipSize =
+      parseFloat(window.getComputedStyle(cvvField).height) - 24;
+    cvvToolTipEl = document.createElement("div");
+    cvvToolTipEl.classList.add("cvvTooltip");
+    cvvToolTipEl.textContent = "?";
+    cvvField.parentNode.style.position = "relative";
+
+    const cvvFieldWrapperCoords = cvvField.parentNode.getBoundingClientRect();
+    const cvvFieldCoords = cvvField.getBoundingClientRect();
+    const cvvFieldToolTipCoords = {
+      top: cvvFieldCoords.top - cvvFieldWrapperCoords.top + 12,
+      left: cvvFieldCoords.right - cvvFieldWrapperCoords.right,
+    };
+
+    const cvvToolTipStyles = `
+    <style>
+      .cvvTooltip {
+        width: ${toolTipSize}px;
+        height: ${toolTipSize}px;
+        font-size: ${toolTipSize - 5}px;
+        display: flex;
+        border: 1px solid;
+        border-radius: 99px;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        right: 22px;
+        top: ${cvvFieldToolTipCoords.top}px;
+        cursor: pointer;
+        opacity: 0.65;
+      }
+      .cvvTooltip:hover {
+        opacity: 1;
+      }
+    </style>
+    `;
+    document.head.insertAdjacentHTML("beforeend", cvvToolTipStyles);
+    cvvField.parentNode.appendChild(cvvToolTipEl);
+  })();
+
+  (function ensureCvvOverlayExists() {
+    if (cvvOverlay) return;
+    cvvOverlay = document.createElement("div");
+    cvvOverlay.id = "cvvOverlay";
+    cvvOverlay.className = "cvvOverlay";
+    cvvOverlay.role = "dialog";
+    cvvOverlay.ariaModal = "true";
+    const modalStyles = `
+    <style>
+      .cvvOverlay {
+        --color-text-primary: #111827;
+        --color-text-secondary: #6b7280;
+        --color-background-primary: #ffffff;
+        --color-background-secondary: #f3f4f6;
+        --color-background-info: #eff6ff;
+        --color-border-secondary: #d1d5db;
+        --color-border-tertiary: #e5e7eb;
+        --border-radius-md: 6px;
+        --border-radius-lg: 12px;
+
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.42);
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+
+        * {
+          margin: 0;
+          padding: 0;
+        }
+
+        &.open {
+          display: flex;
+        }
+
+        .modal {
+          background: var(--color-background-primary);
+          border-radius: var(--border-radius-lg);
+          border: 0.5px solid var(--color-border-tertiary);
+          padding: 1.5rem;
+          width: 590px;
+          position: relative;
+        }
+
+        .modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1rem;
+        }
+
+        .modal-title {
+          font-size: 20px;
+          font-weight: 500;
+          color: var(--color-text-primary);
+          margin: auto;
+        }
+
+        .close-btn {
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          border: 0.5px solid var(--color-border-secondary);
+          background: transparent;
+          color: var(--color-text-secondary);
+          font-size: 16px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          top: 12px;
+          right: 12px;
+        }
+
+        .close-btn:hover {
+          background: var(--color-background-secondary);
+        }
+
+        .modal-body p {
+          font-size: 13px;
+          color: var(--color-text-secondary);
+          line-height: 1.6;
+          margin-top: .75rem;
+        }
+
+        .card-scene {
+          display: flex;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        .card-group {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .card-face-label {
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--color-text-primary);
+          margin-bottom: 0.5rem;
+        }
+
+        .card {
+          width: 238px;
+          height: 146px;
+          border-radius: 12px;
+          position: relative;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+
+        .card img {
+          width: 100%;
+        }
+
+        .arrow-wrap {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .arrow-bottom-line {
+          height: 2px;
+          background-color: #1DBDE4;
+          width: 80px;
+          position: absolute;
+          bottom: 0px;
+          right: 39.7px;
+        }
+
+        .card-front .arrow-bottom-line {
+          width: 83px;
+          right: 36.7px;
+        }
+
+        .arrow-line {
+          width: 1.5px;
+          height: 4px;
+          background: #1DBDE4;
+        }
+
+        .arrow-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #1DBDE4;
+        }
+
+        .arrow-label {
+          margin-top: 4px;
+          font-size: 11px;
+          color: var(--color-text-secondary);
+          white-space: nowrap;
+        }
+
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+
+        .card-group--back .arrow-label,
+        .card-group--front .arrow-label {
+          white-space: normal;
+        }
+      }
+    </style>
+    `;
+    cvvOverlay.innerHTML = `
+    <div class="modal">
+      <button class="close-btn" id="cvvCloseBtn" aria-label="Close">X</button>
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">Where is my security code?</span>
+      </div>
+      <div class="card-scene">
+        <div class="card-group card-group--back">
+          <span class="card-face-label">Back of card</span>
+          <div class="card card-back">
+            <img src="https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/back-of-card.webp" />
+            <div class="arrow-bottom-line"></div>
+          </div>
+          <div class="arrow-wrap">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot"></div>
+            <span class="arrow-label">3-digit CVV number</span>
+          </div>
+        </div>
+        <div class="card-group card-group--front">
+          <span class="card-face-label">Front of card</span>
+          <div class="card card-front">
+            <img src="https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/front-of-card.webp" />
+            <div class="arrow-bottom-line"></div>
+          </div>
+          <div class="arrow-wrap">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot"></div>
+            <span class="arrow-label">4-digit CVV number</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p>The 3-digit security code (CVV) is printed on the back of your card, to the right of the signature strip.</p>
+        <p>American Express cards have a 4-digit code on the front.</p>
+      </div>
+    </div>
+    `;
+    document.head.insertAdjacentHTML("beforeend", modalStyles);
+    document.body.appendChild(cvvOverlay);
+  })();
+
+  const cvvOpenBtn = cvvToolTipEl;
+  const cvvCloseBtn = document.getElementById("cvvCloseBtn");
+  const closeCvvModal = () => cvvOverlay.classList.remove("open");
+  const openCvvModal = () => cvvOverlay.classList.add("open");
+  cvvOpenBtn.addEventListener("click", openCvvModal);
+  cvvCloseBtn.addEventListener("click", closeCvvModal);
+  cvvOverlay.addEventListener("click", (e) => {
+    if (e.target === cvvOverlay) closeCvvModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeCvvModal();
+  });
+})();
+
 });
 
 async function returnPaypal() {
@@ -4532,7 +4892,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "LzJbbpijImjQKIwNUkxQGQk0nQuxqmaEpVcH94SCG1nseJdC0rRBD-PDl1KagA8-",
+        pageId: "DFIugyu7RlzBAEx1niDSjfoM5BqqtwhpskJbQJV7nGovEfIHVAd6UaOlLuyj0bBF",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
@@ -5082,17 +5442,17 @@ function handleFreeGiftParam(allProducts) {
       const currentUnitPrice = Number(currentProduct?.price || 0);
 
       if (currentProduct) {
+        if (shouldSkipRecurring && isRecurringByProductId(currentProduct.id)) {
+          // Skip recurring main product for Klarna
+        } else {
+        let quantity = Number(currentProduct.quantity || 1);
         const fullPriceNode = document.querySelector(
           `[data-product-card][data-product-id='${currentProduct.id}'] [data_product_full_price]`,
         );
         const fullPriceElement = fullPriceNode
           ? parseFloat(fullPriceNode.innerHTML.replaceAll(",", ".").replace(/[^0-9.,]+/g, '')) || 0
-          : currentUnitPrice;
+          : currentUnitPrice * quantity;
         hasItems = true;
-        if (shouldSkipRecurring && isRecurringByProductId(currentProduct.id)) {
-          // Skip recurring main product for Klarna
-        } else {
-        let quantity = Number(currentProduct.quantity || 1);
         const itemContainer = document.createElement('div');
         itemContainer.style.display = 'flex';
         itemContainer.style.justifyContent = 'space-between';
@@ -5122,7 +5482,7 @@ function handleFreeGiftParam(allProducts) {
 
         itemContainer.appendChild(itemDetails);
         itemContainer.appendChild(priceElement);
-        summaryList.appendChild(itemContainer);
+        if (summaryList) summaryList.appendChild(itemContainer);
 
         total += currentUnitPrice * quantity;
         subTotal += fullPriceElement;
@@ -5231,7 +5591,7 @@ function handleFreeGiftParam(allProducts) {
           subTotal += isGift ? 0 : product.finalPrice * productObject.quantity;
         }
       });
-      if (!hasItems) {
+      if (!hasItems && summaryList) {
         const noItemsMessage = document.createElement('div');
         noItemsMessage.textContent = '';
         noItemsMessage.style.textAlign = 'center';
