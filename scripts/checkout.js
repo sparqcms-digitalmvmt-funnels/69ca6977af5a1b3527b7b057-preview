@@ -56,7 +56,7 @@ const KOUNT_ORG_ID = '1snn5n9w'; // Standard Kount org_id for ThreatMetrix
 let kountSessionIdForSticky; // This will hold the session_id passed to Kount and Sticky.io
 
 
-const CHECKOUT_NEXT_PAGE_SLUG = "";
+const CHECKOUT_NEXT_PAGE_SLUG = "thank-you";
 
 function getNextPageSlugForRedirect() {
   const normalize = (value) => {
@@ -76,6 +76,29 @@ function getNextPageSlugForRedirect() {
 
   return "/";
 }
+
+// Pre-fetch the client IP on page load so it's ready when the checkout button is clicked.
+// Stored as a promise — awaiting it multiple times is safe and always resolves to the same value.
+const clientIPPromise = (async () => {
+  try {
+    const response = await fetch("https://api.ipify.org?format=json");
+    const data = await response.json();
+    return data.ip;
+  } catch {
+    return "0.0.0.0";
+  }
+})();
+
+// Prefetch the next page so the browser can start loading it in the background.
+// By the time the order completes and we redirect, it will already be cached.
+
+(function() {
+  var link = document.createElement("link");
+  link.rel = "prefetch";
+  link.href = "/thank-you";
+  document.head.appendChild(link);
+})();
+
 
 let isTest = sessionStorage.getItem("test");
 
@@ -251,7 +274,16 @@ const i18n = {
   "labels": {
     "noStatesAvailable": "No States or Provinces Available for this Country",
     "selectState": "Select state",
-    "phoneSearchPlaceholder": "Search"
+    "phoneSearchPlaceholder": "Search",
+    "processing": "Processing...",
+    "close": "Close",
+    "cvvModalTitle": "Where is my security code?",
+    "cvvCardBack": "Back of card",
+    "cvvCardFront": "Front of card",
+    "cvvThreeDigitLabel": "3-digit CVV number",
+    "cvvFourDigitLabel": "4-digit CVV number",
+    "cvvBackDescription": "The 3-digit security code (CVV) is printed on the back of your card, to the right of the signature strip.",
+    "cvvFrontDescription": "American Express cards have a 4-digit code on the front."
   }
 };
 
@@ -632,7 +664,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "7_aCuP0EspevB-8-Vt5_fB6w3y1w3qYrzPPZ6gGECQ8briiNaFsYi4tTmTtlSpcs",
+    pageId: "smCoF-qj0zOBuLeOiZuR5Fbj5FpMTkcdH7izxvQ9mUuv6Om57o5902SHZLsYcw-j",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1234,14 +1266,7 @@ let formEl, generalError;
 const removeQuantityFromName = (name) => name.replace(/^\d+x\s*/i, "");
 
 async function getClientIP() {
-  try {
-    const response = await fetch("https://api.ipify.org?format=json");
-    const data = await response.json();
-    return data.ip;
-  } catch (error) {
-    console.error("Error fetching IP:", error);
-    return "0.0.0.0";
-  }
+  return clientIPPromise;
 }
 
 function getDataFromSessionStorage() {
@@ -1705,7 +1730,7 @@ function getInPurchaseUpsells() {
             DEFAULT_OFFER_ID,
           item_id: Number(product.dataset.productId),
           order_offer_quantity:
-            Number(product.getAttribute("data-product-quantity")) || 1
+            Number(product.getAttribute("data-non-shippable-quantity") ?? product.getAttribute("data-product-quantity")) || 1
         };
       }
       const isInput = product.tagName.toLowerCase() === "input";
@@ -1786,7 +1811,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "7_aCuP0EspevB-8-Vt5_fB6w3y1w3qYrzPPZ6gGECQ8briiNaFsYi4tTmTtlSpcs",
+    pageId: "smCoF-qj0zOBuLeOiZuR5Fbj5FpMTkcdH7izxvQ9mUuv6Om57o5902SHZLsYcw-j",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2085,7 +2110,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "7_aCuP0EspevB-8-Vt5_fB6w3y1w3qYrzPPZ6gGECQ8briiNaFsYi4tTmTtlSpcs",
+    pageId: "smCoF-qj0zOBuLeOiZuR5Fbj5FpMTkcdH7izxvQ9mUuv6Om57o5902SHZLsYcw-j",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2464,7 +2489,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "7_aCuP0EspevB-8-Vt5_fB6w3y1w3qYrzPPZ6gGECQ8briiNaFsYi4tTmTtlSpcs",
+    pageId: "smCoF-qj0zOBuLeOiZuR5Fbj5FpMTkcdH7izxvQ9mUuv6Om57o5902SHZLsYcw-j",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -3157,7 +3182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     loaderOverlay.setAttribute('data-preloader', '');
     loaderOverlay.innerHTML = `
         <div class="loader"></div>
-        <p>Processing...</p>
+        <p>${i18n.labels.processing}</p>
     `;
 
     const loaderStyles = `
@@ -3175,7 +3200,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             background: rgba(255, 255, 255, 0.3);
             z-index: 9999;
         }
-        .loader {
+        [data-preloader] .loader {
             width: 48px;
             height: 48px;
             border-bottom-color: transparent !important;
@@ -4739,39 +4764,39 @@ await initializeFormValidation();
     `;
     cvvOverlay.innerHTML = `
     <div class="modal">
-      <button class="close-btn" id="cvvCloseBtn" aria-label="Close">X</button>
+      <button class="close-btn" id="cvvCloseBtn" aria-label="${i18n.labels.close}">X</button>
       <div class="modal-header">
-        <span class="modal-title" id="modalTitle">Where is my security code?</span>
+        <span class="modal-title" id="modalTitle">${i18n.labels.cvvModalTitle}</span>
       </div>
       <div class="card-scene">
         <div class="card-group card-group--back">
-          <span class="card-face-label">Back of card</span>
+          <span class="card-face-label">${i18n.labels.cvvCardBack}</span>
           <div class="card card-back">
-            <img src="https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/back-of-card.webp" />
+            <img src="https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/back-of-card.webp" alt="" />
             <div class="arrow-bottom-line"></div>
           </div>
           <div class="arrow-wrap">
             <div class="arrow-line"></div>
             <div class="arrow-dot"></div>
-            <span class="arrow-label">3-digit CVV number</span>
+            <span class="arrow-label">${i18n.labels.cvvThreeDigitLabel}</span>
           </div>
         </div>
         <div class="card-group card-group--front">
-          <span class="card-face-label">Front of card</span>
+          <span class="card-face-label">${i18n.labels.cvvCardFront}</span>
           <div class="card card-front">
-            <img src="https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/front-of-card.webp" />
+            <img src="https://stdigitalmvmtprod001.blob.core.windows.net/assets/develop/front-of-card.webp" alt="" />
             <div class="arrow-bottom-line"></div>
           </div>
           <div class="arrow-wrap">
             <div class="arrow-line"></div>
             <div class="arrow-dot"></div>
-            <span class="arrow-label">4-digit CVV number</span>
+            <span class="arrow-label">${i18n.labels.cvvFourDigitLabel}</span>
           </div>
         </div>
       </div>
       <div class="modal-body">
-        <p>The 3-digit security code (CVV) is printed on the back of your card, to the right of the signature strip.</p>
-        <p>American Express cards have a 4-digit code on the front.</p>
+        <p>${i18n.labels.cvvBackDescription}</p>
+        <p>${i18n.labels.cvvFrontDescription}</p>
       </div>
     </div>
     `;
@@ -4892,7 +4917,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "7_aCuP0EspevB-8-Vt5_fB6w3y1w3qYrzPPZ6gGECQ8briiNaFsYi4tTmTtlSpcs",
+        pageId: "smCoF-qj0zOBuLeOiZuR5Fbj5FpMTkcdH7izxvQ9mUuv6Om57o5902SHZLsYcw-j",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
