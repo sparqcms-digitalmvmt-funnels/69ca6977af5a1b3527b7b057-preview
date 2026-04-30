@@ -48,7 +48,7 @@ const getVrioCampaignInfoBasedOnPaymentMethod = (isVipUpsell) => {
 const campaignInfo = getVrioCampaignInfoBasedOnPaymentMethod(false);
 const CAMPAIGN_ID = campaignInfo.vrioCampaignId;
 const INTEGRATION_ID = campaignInfo.integrationId;
-const CURRENCY = "EUR";
+const CURRENCY = "USD";
 
 const CURRENCY_LOCALE_MAP = {
   USD: 'en-US',
@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const endpoint =
     `orders?order_id=${orderids.join(",")}` +
-    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=PoQeSTlp5u0eoKVBmCme0R8T4Anb8uIg_3j65mYTuwTqLzVqbeHg3cfHnVzL-ukn`
+    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=XxKkbO3AjMUcPJMGq1hdJjc0kCmXoZdKRxZC6rKSw3ajQxJyxNkW8iZuQng4-mC4`
 
   const response = await fetch(
     `https://app-cms-api-proxy-dev-001.azurewebsites.net/vrio/${endpoint}`,
