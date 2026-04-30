@@ -84,7 +84,7 @@ if (localStorage.getItem('sK_r')) {
 const route = async () => {
   if (localStorage.getItem('sK_r')) return JSON.parse(localStorage.getItem('sK_r'));
   const sessionId = MVMT.getSessionId() || localStorage.getItem("mvmt_session_id") || "";
-  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177756130269221&sessionId='+sessionId;
+  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177756155115920&sessionId='+sessionId;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -4305,7 +4305,7 @@ h3.nw-txt, .grp-bx-text1, label.expship.ml-0.mb-0 {
             false
           >
             Texas
-          </option></select><div id="F3TQCW2p7nsSd4dAslboX" class="floating-label"><span id="3NYSl80OhIChPyj0zRguc" class="">State</span></div></div><div class="c-lc9846 c-oaxxat c-rri4mx cxpk1f6 c7l9c6s c-a4oera c-aop3ja c-b1u9qq c-crbsvi ctduf03 cxoddkv c-i9vfpo"><input class="c-i9vfpo c-u6bap8 c-pzcuxk cuo370x c-cgp2b4 c-mb61ox c-63hydz cf4pxvt cxoddkv" placeholder="Zip Code:" autoComplete="postal-code" data-zip-code="" maxlength="5" name="shippingZip"/></div></div><div class="c-lc9846 c-oaxxat c-rri4mx cxpk1f6 c-5pdfmv c-a4oera c-i9vfpo c-mb61ox cmpdduo cthv3aw cnvflt3 c-img9rw cpf4zja cck0jdd cun148d c-chr53o c-osyzik ctujf64 c2yn23a c2u2kz6 c-lyy4od cm7ktim caeus9j cc55100 cceynma" data-product-discount="50" data-product-id="229" data-product-quantity="4" data-shippable-product-id="223" data-non-shippable-quantity="1"><div class="sfProText c-i9vfpo c-mb61ox c-63hydz cf4pxvt c-mtr8v cybkfeg c-jpgxsh c-aop3ja c-crbsvi c-b1scs5 ctduf03" value="travelBag" data-upsell="" data-summary-name="travel-bag" data-product-id="232" data-shippable-product-id="223" data-product-quantity="3"><label htmlFor="travelBag" key="travelBag">
+          </option></select><div id="F3TQCW2p7nsSd4dAslboX" class="floating-label"><span id="3NYSl80OhIChPyj0zRguc" class="">State</span></div></div><div class="c-lc9846 c-oaxxat c-rri4mx cxpk1f6 c7l9c6s c-a4oera c-aop3ja c-b1u9qq c-crbsvi ctduf03 cxoddkv c-i9vfpo"><input class="c-i9vfpo c-u6bap8 c-pzcuxk cuo370x c-cgp2b4 c-mb61ox c-63hydz cf4pxvt cxoddkv" placeholder="Zip Code:" autoComplete="postal-code" data-zip-code="" maxlength="5" name="shippingZip"/></div></div><div class="c-lc9846 c-oaxxat c-rri4mx cxpk1f6 c-5pdfmv c-a4oera c-i9vfpo c-mb61ox cmpdduo cthv3aw cnvflt3 c-img9rw cpf4zja cck0jdd cun148d c-chr53o c-osyzik ctujf64 c2yn23a c2u2kz6 c-lyy4od cm7ktim caeus9j cc55100 cceynma" data-product-discount="50" data-product-id="229" data-product-quantity="4" data-shippable-product-id="223" data-non-shippable-quantity="1"><div class="sfProText c-i9vfpo c-mb61ox c-63hydz cf4pxvt c-mtr8v cybkfeg c-jpgxsh c-aop3ja c-crbsvi c-b1scs5 ctduf03" value="travelBag" data-upsell="" data-summary-name="travel-bag"><label htmlFor="travelBag" key="travelBag">
             <input
               type="checkbox"
               id=travelBag
