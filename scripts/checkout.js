@@ -664,7 +664,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "1QS1iCzWIZcpzQwoHSwiUvTUuAQ7e6ySV_h6c0uFKsbRNEukYDW6-MOsxfXBLiaZ",
+    pageId: "S_Dts_Srh4orFfbOidq1-da96WjegspSDeaezHFkONEMKU8GiEObTu7Od4kH-UOd",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1811,7 +1811,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "1QS1iCzWIZcpzQwoHSwiUvTUuAQ7e6ySV_h6c0uFKsbRNEukYDW6-MOsxfXBLiaZ",
+    pageId: "S_Dts_Srh4orFfbOidq1-da96WjegspSDeaezHFkONEMKU8GiEObTu7Od4kH-UOd",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2110,7 +2110,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "1QS1iCzWIZcpzQwoHSwiUvTUuAQ7e6ySV_h6c0uFKsbRNEukYDW6-MOsxfXBLiaZ",
+    pageId: "S_Dts_Srh4orFfbOidq1-da96WjegspSDeaezHFkONEMKU8GiEObTu7Od4kH-UOd",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2489,7 +2489,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "1QS1iCzWIZcpzQwoHSwiUvTUuAQ7e6ySV_h6c0uFKsbRNEukYDW6-MOsxfXBLiaZ",
+    pageId: "S_Dts_Srh4orFfbOidq1-da96WjegspSDeaezHFkONEMKU8GiEObTu7Od4kH-UOd",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -4917,7 +4917,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "1QS1iCzWIZcpzQwoHSwiUvTUuAQ7e6ySV_h6c0uFKsbRNEukYDW6-MOsxfXBLiaZ",
+        pageId: "S_Dts_Srh4orFfbOidq1-da96WjegspSDeaezHFkONEMKU8GiEObTu7Od4kH-UOd",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
