@@ -84,7 +84,7 @@ if (localStorage.getItem('sK_r')) {
 const route = async () => {
   if (localStorage.getItem('sK_r')) return JSON.parse(localStorage.getItem('sK_r'));
   const sessionId = MVMT.getSessionId() || localStorage.getItem("mvmt_session_id") || "";
-  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177757197640642&sessionId='+sessionId;
+  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177763449105015&sessionId='+sessionId;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -4795,118 +4795,96 @@ this.value = this.value.replace(/\D/g, '');
         });
             console.log("test")
       });
-</script><script>(function () {
-                                                                                                         
-    /* ── CONFIGURATION ─────────────────────────────────────────── */
-    var MOUNT_ID = 'click-bump-mount';
-                                                                                                         
-    var OPTIONS = [
-      /* {                                                                                                  
-        label: '1x Pro Pack',                               
-        products: [
-          { id: 598, quantity: 1, nonShippableQuantity: 1, shippableProductId: 591 },
-          { id: 590, quantity: 2 },                                                                      
-          { id: 592, quantity: 1 }
-        ]                                                                                                
-      },                                                     */
-      {
-        label: '2x Duo Pro Pack',
-        products: [
-          { id: 229, quantity: 4, nonShippableQuantity: 1, shippableProductId: 223 },                    
-          { id: 233, quantity: 1 },
-          { id: 231, quantity: 2 }                                                                       
-        ]                                                                                                
-      },
-      /* {                                                                                                  
-        label: '4x Family Pack',                            
-        products: [
-          { id: 600, quantity: 4, nonShippableQuantity: 1, shippableProductId: 591 },
-          { id: 590, quantity: 8 },
-          { id: 592, quantity: 1 }                                                                       
-        ]
-      }                                                                                                   */
-    ];                                                      
-    /* ─────────────────────────────────────────────────────────── */
+</script><script>(function () {                    
 
-    function createClickBump() {                                                                         
-      var mount = document.getElementById(MOUNT_ID);
-      if (!mount) return;                                                                                
-                                                            
-      // Upsell root (ancestor required by getInPurchaseUpsells)                                         
+    /* ── CONFIGURATION ─────────────────────────────────────────── */                                
+    var MOUNT_ID = 'click-bump-mount';
+                                                                                                      
+    var OPTIONS = [                                         
+      {                                                                                               
+        label: '2x Duo Pro Pack',                           
+        products: [                                                                                   
+          { id: 229, quantity: 4, nonShippableQuantity: 1, shippableProductId: 223 },
+          { id: 233, quantity: 1, price: 0 },                                                         
+          { id: 231, quantity: 2, price: 0 }                
+        ]                                                                                             
+      }                                                     
+    ];                                                                                                
+    /* ─────────────────────────────────────────────────────────── */
+                                                                                                      
+    function createClickBump() {
+      var mount = document.getElementById(MOUNT_ID);                                                  
+      if (!mount) return;                                   
+                                                                                                      
       var upsellRoot = document.createElement('div');
-      upsellRoot.setAttribute('data-upsell', '');                                                        
-                                                                                                         
-      // Toggle checkbox — checked by default
-      var checkbox = document.createElement('input');                                                    
-      checkbox.type = 'checkbox';                           
-      checkbox.checked = true;
-      checkbox.style.display = 'none'; // hide if you don't need a visible toggle
-      upsellRoot.appendChild(checkbox);                                                                  
+      upsellRoot.setAttribute('data-upsell', '');                                                     
+                                                                                                      
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';                                                                     
+      checkbox.checked = true;                              
+      checkbox.style.display = 'none';
+      upsellRoot.appendChild(checkbox);                                                               
    
-      // Select container                                                                                
-      var selectEl = document.createElement('div');         
-      selectEl.setAttribute('data-cb-select', '');
-      upsellRoot.appendChild(selectEl);                                                                  
+      var selectEl = document.createElement('div');                                                   
+      selectEl.setAttribute('data-cb-select', '');          
+      upsellRoot.appendChild(selectEl);                                                               
    
-      // Build option elements                                                                           
-      var optionEls = OPTIONS.map(function (opt, i) {       
-        var optionEl = document.createElement('div');
-        optionEl.setAttribute('data-cb-option', '');
-        optionEl.classList.add('cb-option'); // for your own CSS                                         
-        if (i === 0) optionEl.classList.add('cb-option-active');                                         
-                                                                                                         
-        // Visible label                                                                                 
-        var label = document.createElement('span');         
-        label.textContent = opt.label;
-        label.className = 'cb-option-label';                                                             
-        optionEl.appendChild(label);
-                                                                                                         
-        // Hidden product-binding elements                  
-        opt.products.forEach(function (p) {
-          var el = document.createElement('div');                                                        
-          el.style.display = 'none';
-          el.setAttribute('data-product-id', String(p.id));                                              
+      var optionEls = OPTIONS.map(function (opt, i) {                                                 
+        var optionEl = document.createElement('div');       
+        optionEl.setAttribute('data-cb-option', '');                                                  
+        optionEl.classList.add('cb-option');                
+        if (i === 0) optionEl.classList.add('cb-option-active');
+                                                                                                      
+        var label = document.createElement('span');                                                   
+        label.textContent = opt.label;                                                                
+        label.className = 'cb-option-label';                                                          
+        optionEl.appendChild(label);                        
+
+        opt.products.forEach(function (p) {                                                           
+          var el = document.createElement('div');
+          el.style.display = 'none';                                                                  
+          el.setAttribute('data-product-id', String(p.id)); 
           el.setAttribute('data-product-quantity', String(p.quantity));
-          if (p.nonShippableQuantity != null) {                                                          
+          if (p.nonShippableQuantity != null) {                                                       
             el.setAttribute('data-non-shippable-quantity', String(p.nonShippableQuantity));
-          }                                                                                              
+          }                                                                                           
           if (p.shippableProductId != null) {               
-            el.setAttribute('data-shippable-product-id', String(p.shippableProductId));
-          }                                                                                              
-          optionEl.appendChild(el);
-        });                                                                                              
-                                                            
+            el.setAttribute('data-shippable-product-id', String(p.shippableProductId));               
+          }                                                 
+          if (p.price != null) {
+            el.setAttribute('data-order-offer-price', String(p.price));                               
+          }
+          optionEl.appendChild(el);                                                                   
+        });                                                 
+
         return optionEl;
       });
 
-      // Click to switch active option                                                                   
-      optionEls.forEach(function (optionEl) {
-        optionEl.addEventListener('click', function () {                                                 
-          optionEls.forEach(function (o) { o.classList.remove('cb-option-active'); });
-          optionEl.classList.add('cb-option-active');                                                    
+      optionEls.forEach(function (optionEl) {                                                         
+        optionEl.addEventListener('click', function () {
+          optionEls.forEach(function (o) { o.classList.remove('cb-option-active'); });                
+          optionEl.classList.add('cb-option-active');                                                 
           if (typeof updateSummary === 'function') updateSummary();
-        });                                                                                              
+        });                                                                                           
       });                                                   
-
-      optionEls.forEach(function (el) { selectEl.appendChild(el); });                                    
+                                                                                                      
+      optionEls.forEach(function (el) { selectEl.appendChild(el); });                                 
    
-      // Checkbox toggle also refreshes summary                                                          
-      checkbox.addEventListener('change', function () {     
+      checkbox.addEventListener('change', function () {                                               
         if (typeof updateSummary === 'function') updateSummary();
-      });                                                                                                
-   
-      mount.appendChild(upsellRoot);                                                                     
-                                                            
-      // Trigger initial summary calculation
-      if (typeof updateSummary === 'function') updateSummary();
-    }                                                                                                    
-   
-    if (document.readyState !== 'loading') {                                                             
-      createClickBump();                                    
+      });
+
+      mount.appendChild(upsellRoot);
+
+      if (typeof updateSummary === 'function') updateSummary();                                       
+    }
+                                                                                                      
+    if (document.readyState !== 'loading') {                
+      createClickBump();
     } else {
       document.addEventListener('DOMContentLoaded', createClickBump);
-    }
-                                                                                                         
+    }                                                                                                 
+   
   })();</script>
 <script type="application/json" id="page-config">
 {
