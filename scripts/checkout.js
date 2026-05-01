@@ -664,7 +664,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "vGskZJG29390qC6F98M1G2Zio0LfSxWWjH5GO48aMvJyAAg-P18UlT5SzmhFfoII",
+    pageId: "Ih7Ff5XK3-wFWR89OXfGMS0six4a6cQGdqmZ5TWATnbH4RDiYjW8K5qBPMiU25zW",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -1724,7 +1724,7 @@ function getInPurchaseUpsells() {
         );
         if (upsellToggle && !upsellToggle.checked) return;
 
-        const offer = {
+        return {
           offer_id:
             getVrioOfferIdByProductId(product.dataset.productId) ??
             DEFAULT_OFFER_ID,
@@ -1811,7 +1811,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "vGskZJG29390qC6F98M1G2Zio0LfSxWWjH5GO48aMvJyAAg-P18UlT5SzmhFfoII",
+    pageId: "Ih7Ff5XK3-wFWR89OXfGMS0six4a6cQGdqmZ5TWATnbH4RDiYjW8K5qBPMiU25zW",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2110,7 +2110,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "vGskZJG29390qC6F98M1G2Zio0LfSxWWjH5GO48aMvJyAAg-P18UlT5SzmhFfoII",
+    pageId: "Ih7Ff5XK3-wFWR89OXfGMS0six4a6cQGdqmZ5TWATnbH4RDiYjW8K5qBPMiU25zW",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2489,7 +2489,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "vGskZJG29390qC6F98M1G2Zio0LfSxWWjH5GO48aMvJyAAg-P18UlT5SzmhFfoII",
+    pageId: "Ih7Ff5XK3-wFWR89OXfGMS0six4a6cQGdqmZ5TWATnbH4RDiYjW8K5qBPMiU25zW",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -4917,7 +4917,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "vGskZJG29390qC6F98M1G2Zio0LfSxWWjH5GO48aMvJyAAg-P18UlT5SzmhFfoII",
+        pageId: "Ih7Ff5XK3-wFWR89OXfGMS0six4a6cQGdqmZ5TWATnbH4RDiYjW8K5qBPMiU25zW",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
