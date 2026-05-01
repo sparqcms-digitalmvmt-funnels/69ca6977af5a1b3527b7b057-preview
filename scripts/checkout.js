@@ -61,7 +61,7 @@ const CHECKOUT_NEXT_PAGE_SLUG = "thank-you";
 function getNextPageSlugForRedirect() {
   const normalize = (value) => {
     if (!value) return "";
-    return value.startsWith("/") ? value : "/" + value;
+    return value.startsWith("/69ca6977af5a1b3527b7b057-preview") ? value : (value.startsWith("/") ? "/69ca6977af5a1b3527b7b057-preview" + value : "/69ca6977af5a1b3527b7b057-preview/" + value);
   };
 
   try {
@@ -664,7 +664,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
         ?.getAttribute("data-shipping-profile-id") || undefined;
 
   const orderData = {
-    pageId: "X7Ru-iSqk3ioPHLJ2F8PczukqBTldRy50U5OVtRzSvXlNPchIpn9l9PNT1nN17jT",
+    pageId: "o03C_6rV204JlWBXGYGh2DeaVNzRROQkhNKYZ3fU9KcbiNPDlaewmv2I0eTOrZIx",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
@@ -826,6 +826,7 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
   if (isTest && window.location.hostname === "localhost") {
     console.log("Sending wallet order to VRIO", { sanitizedOrderData });
   }
+  try { sessionStorage.removeItem('klaviyo_profile_updated'); } catch(e) {}
   try {
     if (typeof validateAndSendToKlaviyo === "function") {
       const klaviyoPreOrderData = { ...sanitizedOrderData };
@@ -957,6 +958,13 @@ async function createOrderViaWallet(confirmationToken, paymentMethodId) {
       }
     } catch (error) {
       console.error("Error validating and sending to Klaviyo", error);
+    }
+    try {
+      if (typeof sendKlaviyoOrderEvents === 'function') {
+        await sendKlaviyoOrderEvents(sanitizedOrderData, result, true);
+      }
+    } catch (error) {
+      console.error("Error sending order events to Klaviyo", error);
     }
     MVMT.track("ORDER_SUCCESS", {
       page: "checkout",
@@ -1393,6 +1401,51 @@ function getAttributionForKlaviyo() {
   return o;
 }
 
+function getRegularPrice(fallbackPrice, productId) {
+  try {
+    const baseSels = ['[data-holder="product_full_price"]', '[data_product_full_price]'];
+    const selector = productId
+      ? baseSels.map(s => '[data-product-card][data-product-id="' + productId + '"] ' + s).join(', ')
+      : baseSels.join(', ');
+    const el = document.querySelector(selector);
+    if (el) {
+      const text = el.textContent;
+      if (!text) return fallbackPrice;
+      const raw = text.replace(/[^0-9.,]/g, '');
+      const lastComma = raw.lastIndexOf(',');
+      const lastDot = raw.lastIndexOf('.');
+
+      let normalized;
+      if (lastDot === -1 && /^d+,d{3}$/.test(raw)) {
+        // "1,234"
+        normalized = raw.replace(/,/g, '');
+      } else if (lastComma > lastDot) {
+        // "1.234,56"
+        normalized = raw.replace(/./g, '').replace(',', '.');
+      } else {
+        // "1,234.56" or "1.23"
+        normalized = raw.replace(/,/g, '');
+      }
+
+      const v = parseFloat(normalized);
+      if (!isNaN(v) && v > 0) return v;
+    }
+  } catch(e) {
+    console.error('Error getting regular price', e);
+  }
+  return fallbackPrice;
+}
+
+function getKlaviyoPaymentMethod(paymentMethodId, cardTypeId) {
+  const pmId = Number(paymentMethodId);
+  if (pmId === 1) {
+    const cardMap = { 1: 'Mastercard', 2: 'Visa', 3: 'Discover', 4: 'American Express', 5: 'Digital Wallet', 6: 'ACH', 7: 'SEPA' };
+    return cardMap[Number(cardTypeId)] || 'Credit Card';
+  }
+  const pmMap = { 3: 'Google Pay', 4: 'Apple Pay', 6: 'PayPal', 12: 'Klarna' };
+  return pmMap[pmId] || '';
+}
+
 function getDialCodeFromItiDom(telEl) {
   try {
     if (!telEl) return null;
@@ -1406,7 +1459,16 @@ function getDialCodeFromItiDom(telEl) {
 
 const KLAVIYO_API_REVISION = '2026-01-15';
 
-async function sendKlaviyoEvent(eventData, eventName, source) {
+// eventData             — customer contact info (email, name, phone, address) used for profile update AND email validation
+// eventName             — Klaviyo metric name for single-event calls; ignored when batchItems is set (names come from each item)
+// source                — event source label sent with the event
+// eventPropertiesToSend — explicit event properties to send; when null, built from eventData automatically
+// batchItems            — array of { name, properties } for bulk-create; when set, fires one /client/event-bulk-create instead of /client/events
+//
+// Profile update + subscription fire on every call UNLESS klaviyo_profile_updated is set in sessionStorage (meaning
+// a prior call already succeeded). Call sessionStorage.removeItem('klaviyo_profile_updated') before the first event
+// of a new submit attempt to ensure it always fires regardless of prior success.
+async function sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems) {
   if (!KLAVIYO_PUBLIC_API_KEY || !eventData || !eventData.email) return;
 
   var sendData = { eventName: eventName, source: source, emailHint: (eventData.email || '').replace(/(.?).*@(.*)/, '$1***@$2') };
@@ -1549,89 +1611,188 @@ async function sendKlaviyoEvent(eventData, eventName, source) {
   var profileOk = false;
 
 
-  var hasLocation = !!(address1 || city || region || zip || country || eventData.ip_address);
-  logKlaviyoLifecycle('profile_send_start', { eventName: eventName, hasPhone: !!phoneE164, hasLocation: hasLocation });
+  let aosSent = false;
+  try { aosSent = !!sessionStorage.getItem('klaviyo_aos_sent'); } catch(e) {}
 
-  var profilePromise = fetch(`https://a.klaviyo.com/client/profiles?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
-    method: 'POST',
-    headers: {
-      accept: 'application/vnd.api+json',
-      revision: KLAVIYO_API_REVISION,
-      'content-type': 'application/vnd.api+json',
-    },
-    body: JSON.stringify(klaviyoProfileData),
-    keepalive: true,
-  }).then(function(res) {
-    profileOk = res.ok;
-    logKlaviyoLifecycle('profile_send_done', { status: res.ok ? 'ok' : 'fail', statusCode: res.status });
-    if (!res.ok) {
-      logKlaviyoTrace('failed', { eventName: eventName, status: res.status });
-      if (isTest && window.location.hostname === "localhost") {
-        res.text().then(function(t) { console.warn(`Klaviyo profile update failed for event '${eventName}':`, res.status, t); });
+  var profileAlreadySent = false;
+  try { profileAlreadySent = !!sessionStorage.getItem('klaviyo_profile_updated'); } catch(e) {}
+
+  var hasLocation = !!(address1 || city || region || zip || country || eventData.ip_address);
+
+  var profilePromise = Promise.resolve();
+  var subscriptionPromise = Promise.resolve();
+
+  if (!profileAlreadySent) {
+    logKlaviyoLifecycle('profile_send_start', { eventName: eventName, hasPhone: !!phoneE164, hasLocation: hasLocation });
+    profilePromise = fetch(`https://a.klaviyo.com/client/profiles?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/vnd.api+json',
+        revision: KLAVIYO_API_REVISION,
+        'content-type': 'application/vnd.api+json',
+      },
+      body: JSON.stringify(klaviyoProfileData),
+      keepalive: true,
+    }).then(function(res) {
+      profileOk = res.ok;
+      logKlaviyoLifecycle('profile_send_done', { status: res.ok ? 'ok' : 'fail', statusCode: res.status });
+      if (!res.ok) {
+        logKlaviyoTrace('failed', { eventName: eventName, status: res.status });
+        if (isTest && window.location.hostname === "localhost") {
+          res.text().then(function(t) { console.warn(`Klaviyo profile update failed for event '${eventName}':`, res.status, t); });
+        }
+      } else {
+        logKlaviyoTrace('sent', { eventName: eventName });
+        try { sessionStorage.setItem('klaviyo_profile_updated', '1'); } catch(e) {}
+        if (isTest && window.location.hostname === "localhost") {
+          res.json().then(function(j) { console.log('Klaviyo profile updated for event \'' + eventName + '\':', JSON.stringify(j)); });
+        }
+        if (!aosSent) {
+          try {
+            const aosUa = navigator.userAgent || '';
+            const aosOs = /Android/i.test(aosUa) ? 'Android'
+              : /iPhone|iPad|iPod/i.test(aosUa) ? 'iOS'
+              : /Windows/i.test(aosUa) ? 'Windows'
+              : /Mac/i.test(aosUa) ? 'MacOS'
+              : /Linux/i.test(aosUa) ? 'Linux' : 'Unknown';
+            const aosBrowser = /Edg\//i.test(aosUa) ? 'Edge'
+              : /OPR\//i.test(aosUa) ? 'Opera'
+              : /Chrome/i.test(aosUa) ? 'Chrome'
+              : /Firefox/i.test(aosUa) ? 'Firefox'
+              : /Safari/i.test(aosUa) ? 'Safari'
+              : 'Unknown';
+            const aosFirstPage = sessionStorage.getItem('klaviyo_first_page') || window.location.href;
+            const aosSearchParams = (function() { try { return new URL(aosFirstPage).searchParams; } catch(e2) { return new URLSearchParams(window.location.search); } })();
+            fetch(`https://a.klaviyo.com/client/events?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+              method: 'POST',
+              headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
+              body: JSON.stringify({
+                data: {
+                  type: 'event',
+                  attributes: {
+                    metric: { data: { type: 'metric', attributes: { name: 'Active on Site' } } },
+                    profile: { data: { type: 'profile', attributes: { email: eventData.email } } },
+                    properties: {
+                      referrer: document.referrer || '',
+                      uid: sessionStorage.getItem('uid') || aosSearchParams.get('uid') || '',
+                      oid: sessionStorage.getItem('oid') || aosSearchParams.get('oid') || '',
+                      sub5: sessionStorage.getItem('sub5') || aosSearchParams.get('sub5') || '',
+                      C1: sessionStorage.getItem('C1') || sessionStorage.getItem('c1') || aosSearchParams.get('C1') || aosSearchParams.get('c1') || '',
+                      affid: sessionStorage.getItem('affid') || aosSearchParams.get('affid') || '',
+                      os: aosOs,
+                      browser: aosBrowser,
+                      initial_page_path: (function() { try { return new URL(aosFirstPage).pathname; } catch(e2) { return window.location.pathname; } })(),
+                      page: window.location.href,
+                    },
+                    time: new Date().toISOString(),
+                    unique_id: 'Active on Site_' + eventData.email + '_' + Date.now(),
+                  },
+                },
+              }),
+              keepalive: true,
+            }).then(function(res) {
+              if (res.ok) {
+                try { sessionStorage.setItem('klaviyo_aos_sent', '1'); } catch(e) {}
+                logKlaviyoLifecycle('active_on_site_sent', { email: (eventData.email || '').replace(/(.?).*@(.*)/, '$1***@$2') });
+              } else {
+                logKlaviyoTrace('failed', { eventName: 'Active on Site', status: res.status });
+              }
+            }).catch(function(e) {
+              if (typeof console !== 'undefined' && console.error) console.error('Error sending Active on Site event', e);
+            });
+          } catch(e) {
+            if (typeof console !== 'undefined' && console.error) console.error('Error sending Active on Site event', e);
+          }
+        }
       }
-    } else {
-      logKlaviyoTrace('sent', { eventName: eventName });
+      return res;
+    }).catch(function(err) {
+      logKlaviyoLifecycle('profile_send_done', { status: 'fail' });
+      logKlaviyoTrace('error', { eventName: eventName, error: String(err && err.message) });
       if (isTest && window.location.hostname === "localhost") {
-        res.json().then(function(j) { console.log('Klaviyo profile updated for event \'' + eventName + '\':', JSON.stringify(j)); });
+        if (typeof console !== 'undefined' && console.error) console.error(`Klaviyo error for event '${eventName}':`, err);
       }
-    }
-    return res;
-  }).catch(function(err) {
-    logKlaviyoLifecycle('profile_send_done', { status: 'fail' });
-    logKlaviyoTrace('error', { eventName: eventName, error: String(err && err.message) });
-    if (isTest && window.location.hostname === "localhost") {
-      console.error(`Klaviyo error for event '${eventName}':`, err);
-    }
-  });
+    });
 
 
   logKlaviyoLifecycle('subscription_skipped', { reason: 'no_list_id' });
   var subscriptionPromise = Promise.resolve();
 
+  } else {
+    profileOk = true; // already succeeded this submit attempt, allow event tracking
+  }
 
-  try {
-    await Promise.allSettled([profilePromise, subscriptionPromise]);
-  } catch (e) {}
+  await Promise.allSettled([profilePromise, subscriptionPromise]);
 
   if (profileOk) {
     try {
-      const eventPayload = {
-        data: {
+      if (batchItems) {
+        const payloads = batchItems.map((item, index) => {
+          return {
+            type: 'event',
+            attributes: {
+              metric: { data: { type: 'metric', attributes: { name: item.name } } },
+              properties: { ...item.properties },
+              time: new Date().toISOString(),
+              unique_id: item.name + '_' + (eventData.email || '') + '_' + Date.now() + '_' + index,
+            },
+          };
+        });
+        const bulkRes = await fetch(`https://a.klaviyo.com/client/event-bulk-create?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+          method: 'POST',
+          headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
+          body: JSON.stringify({
+            data: {
+              type: 'event-bulk-create',
+              attributes: {
+                profile: { data: { type: 'profile', attributes: { email: eventData.email } } },
+                events: { data: payloads },
+              },
+            },
+          }),
+          keepalive: true,
+        });
+        if (!bulkRes.ok && typeof console !== 'undefined' && console.warn) {
+          console.warn('[Klaviyo] bulk event create failed', bulkRes.status);
+        }
+      } else {
+        const eventPayload = {
           type: 'event',
           attributes: {
             metric: { data: { type: 'metric', attributes: { name: eventName } } },
             profile: { data: { type: 'profile', attributes: { email: eventData.email } } },
-            properties: {
-              ...attributionProps,
-              source: source,
-              page: "checkout",
-              page_type: "Checkout",
-              vrio_campaign_id: CAMPAIGN_ID,
-              klaviyo_event_name: eventName,
-            },
+            properties: eventPropertiesToSend
+              ? Object.assign({}, eventPropertiesToSend)
+              : Object.assign({}, propertiesForKlaviyo, attributionProps, {
+                  source: source,
+                  page: "checkout",
+                  page_type: "Checkout",
+                  vrio_campaign_id: CAMPAIGN_ID,
+                  klaviyo_event_name: eventName,
+                }),
             time: new Date().toISOString(),
             unique_id: eventName + '_' + (eventData.email || '') + '_' + Date.now(),
           },
-        },
-      };
-      const eventRes = await fetch(`https://a.klaviyo.com/client/events?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
-        method: 'POST',
-        headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
-        body: JSON.stringify(eventPayload),
-        keepalive: true,
-      });
-      if (!eventRes.ok && typeof console !== 'undefined' && console.warn) {
-        console.warn('[Klaviyo] event track failed', eventRes.status);
+        };
+        const eventRes = await fetch(`https://a.klaviyo.com/client/events?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+          method: 'POST',
+          headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
+          body: JSON.stringify({ data: eventPayload }),
+          keepalive: true,
+        });
+        if (!eventRes.ok && typeof console !== 'undefined' && console.warn) {
+          console.warn('[Klaviyo] event track failed', eventRes.status);
+        }
       }
     } catch (e) {}
   }
 }
 
-async function validateAndSendToKlaviyo(eventData, eventName, source) {
+async function validateAndSendToKlaviyo(eventData, eventName, source, eventPropertiesToSend, batchItems) {
   try {
-    if (!eventData || !eventData.email || !EMAIL_OVERSIGHT_VALIDATE_URL) {
+    if (!eventData || !eventData.email || typeof EMAIL_OVERSIGHT_VALIDATE_URL === 'undefined' || !EMAIL_OVERSIGHT_VALIDATE_URL) {
       logKlaviyoTrace('EO skip (no URL or email), sending to Klaviyo', { eventName: eventName, source: source });
-      await sendKlaviyoEvent(eventData, eventName, source);
+      await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
       return;
     }
 
@@ -1653,7 +1814,7 @@ async function validateAndSendToKlaviyo(eventData, eventName, source) {
 
     if (!response.ok) {
       logKlaviyoTrace('EO request failed, fallback to Klaviyo', { eventName: eventName, status: response.status });
-      await sendKlaviyoEvent(eventData, eventName, source);
+      await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
       return;
     }
 
@@ -1665,10 +1826,113 @@ async function validateAndSendToKlaviyo(eventData, eventName, source) {
     }
 
     logKlaviyoTrace('EO valid, sending to Klaviyo', { eventName: eventName });
-    await sendKlaviyoEvent(eventData, eventName, source);
+    await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
   } catch (error) {
     logKlaviyoTrace('EO error, fallback to Klaviyo', { eventName: eventName, error: String(error && error.message) });
-    await sendKlaviyoEvent(eventData, eventName, source);
+    await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
+  }
+}
+
+async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedOrder) {
+  if (typeof validateAndSendToKlaviyo !== 'function') return;
+  if (!result || !result.order) return;
+  const kCart = result.order.cart || null;
+  const offers = (kCart && kCart.offers) || result.order.order_offers || [];
+  const kIsCartItem = !!(kCart && kCart.offers);
+  const kOrderId = result.order_id || result.order.order_id || '';
+  const kIsTest = (result.order.is_test != null ? result.order.is_test : sanitizedOrderData.is_test) ? 1 : 0;
+  const kCardTypeId = (result.order.customer_card && result.order.customer_card.card_type_id) || sanitizedOrderData.card_type_id;
+  const kPaymentMethod = getKlaviyoPaymentMethod(sanitizedOrderData.payment_method_id, kCardTypeId);
+  const kShipping = kCart ? kCart.total_shipping : '';
+  const kTax = kCart ? kCart.total_tax : '';
+  const kExperiment = new URLSearchParams(window.location.search).get('experiment') || '';
+
+  const orderedItems = [];
+  const batchItems = [];
+
+  for (let i = 0; i < offers.length; i++) {
+    const item = offers[i];
+    const kOrderOffer = kIsCartItem
+      ? ((result.order.order_offers || []).find(oo => (oo.order_offer_items || [])[0] && oo.order_offer_items[0].item_id == item.item_id) || {})
+      : item;
+    const kOrderOfferItem = (kOrderOffer.order_offer_items || [])[0] || {};
+    const kItemId = item.item_id || kOrderOfferItem.item_id || '';
+    if (document.querySelector('[data-shippable-product-id="' + kItemId + '"]')) continue;
+
+    const kItemName = item.item_name || kOrderOfferItem.item_name || '';
+    const kSku = kOrderOfferItem.item_sku || kItemName || '';
+    const kProductName = kOrderOfferItem.item_name || kItemName || '';
+    const kOfferName = item.offer_name || item.offer_title || kItemName || '';
+    const kQty = item.order_offer_quantity || 1;
+    const kPackageQty = (String(kItemName).match(/(d+)s*x/i) || [])[1] || kQty || 1;
+    const kSalePrice = Number(item.total || item.order_offer_price) || '';
+    const kSubtotal = Number(item.subtotal || kSalePrice) || '';
+    const kRegPrice = getRegularPrice(kSalePrice, kItemId) || '';
+    const kDiscountCode = item.discount_code || '';
+
+    const orderedProps = {
+      name: kItemName, SKU: kSku, ProductName: kProductName,
+      Quantity: kQty, packageQuantity: kPackageQty,
+      individualPrice: kSalePrice, ItemPrice: kSalePrice, subtotal: kSubtotal,
+      RowTotal: kSalePrice, total: kSalePrice, '$value': kSalePrice, regprice: kRegPrice,
+      DiscountCode: kDiscountCode, PaymentMethod: kPaymentMethod,
+      OrderId: kOrderId, isTestOrder: kIsTest,
+      shippingMethod: kShipping, shippingAmount: kShipping,
+      tax: kTax,
+      offer: kOfferName, page_type: "Checkout",
+      hostName: window.location.hostname, pagePath: window.location.pathname,
+      step: "checkout", group: "checkout",
+      ProductURL: window.location.href, experiment: kExperiment,
+    };
+    orderedItems.push(orderedProps);
+    batchItems.push({ name: 'Ordered "' + kItemName + '"', properties: orderedProps });
+  }
+
+  if (batchItems.length > 0) {
+    await validateAndSendToKlaviyo(sanitizedOrderData, null, 'order', null, batchItems);
+  }
+
+  if (includePlacedOrder) {
+    const kTotal = kCart?.total || (result.order.order_offers || []).reduce((sum, oo) => sum + Number(oo.order_offer_price || 0), 0);
+    const kSubtotal = kCart?.subtotal || kTotal;
+    const kOfferNames = [...new Set(orderedItems.map(o => o.offer).filter(Boolean))].join(', ');
+
+    await validateAndSendToKlaviyo(sanitizedOrderData, 'Placed Order for "$' + Number(kTotal).toFixed(2) + '"', 'order', {
+      OrderId: kOrderId,
+      isTestOrder: kIsTest,
+      PaymentMethod: kPaymentMethod,
+      subtotal: kSubtotal,
+      shippingAmount: kShipping,
+      shippingMethod: kShipping,
+      tax: kTax,
+      total: kTotal, '$value': kTotal,
+      DiscountCode: (kCart && kCart.order && kCart.order.discount_code) || sanitizedOrderData.discount_code || '',
+      offer: kOfferNames, page_type: "Checkout", step: "checkout",
+      hostName: window.location.hostname, pagePath: window.location.pathname, from: 'klaviyo_lib', experiment: kExperiment,
+      BillingAddress: JSON.stringify({
+        FirstName: sanitizedOrderData.bill_fname || (kCart && kCart.bill_fname) || '', LastName: sanitizedOrderData.bill_lname || (kCart && kCart.bill_lname) || '',
+        Address1: sanitizedOrderData.bill_address1 || (kCart && kCart.bill_address1) || '', Address2: sanitizedOrderData.bill_address2 || (kCart && kCart.bill_address2) || '',
+        City: sanitizedOrderData.bill_city || (kCart && kCart.bill_city) || '',
+        Region: sanitizedOrderData.bill_state || (kCart && kCart.bill_state) || '',
+        RegionCode: (kCart && kCart.bill_state) || sanitizedOrderData.bill_state || '',
+        PostalCode: sanitizedOrderData.bill_zipcode || (kCart && kCart.bill_zipcode) || '',
+        CountryCode: sanitizedOrderData.bill_country || (kCart && kCart.bill_country) || '', Country: sanitizedOrderData.bill_country || (kCart && kCart.bill_country) || '',
+        PhoneNumber: sanitizedOrderData.phone || '', EmailAddress: sanitizedOrderData.email || '',
+      }),
+      ShippingAddress: JSON.stringify({
+        FirstName: sanitizedOrderData.ship_fname || (kCart && kCart.ship_fname) || '', LastName: sanitizedOrderData.ship_lname || (kCart && kCart.ship_lname) || '',
+        Address1: sanitizedOrderData.ship_address1 || (kCart && kCart.ship_address1) || '', Address2: sanitizedOrderData.ship_address2 || (kCart && kCart.ship_address2) || '',
+        City: sanitizedOrderData.ship_city || (kCart && kCart.ship_city) || '',
+        Region: sanitizedOrderData.ship_state || (kCart && kCart.ship_state) || '',
+        RegionCode: (kCart && kCart.ship_state) || sanitizedOrderData.ship_state || '',
+        PostalCode: sanitizedOrderData.ship_zipcode || (kCart && kCart.ship_zipcode) || '',
+        CountryCode: sanitizedOrderData.ship_country || (kCart && kCart.ship_country) || '', Country: sanitizedOrderData.ship_country || (kCart && kCart.ship_country) || '',
+        PhoneNumber: sanitizedOrderData.phone || '', EmailAddress: sanitizedOrderData.email || '',
+      }),
+      Items: JSON.stringify(orderedItems.map(({ name, SKU, ProductName, Quantity, packageQuantity, ItemPrice, individualPrice, RowTotal, regprice, group, ProductURL }) => ({
+        group, Quantity, ProductName, SKU, name, ItemPrice, individualPrice, RowTotal, packageQuantity, regprice, ProductURL,
+      }))),
+    }, null);
   }
 }
 
@@ -1811,7 +2075,7 @@ async function createOrderViaPaypal(isExpress = false) {
   const shippingProfileId = +document.querySelector(`[data-product-id="${selectedProduct.id}"]`)?.getAttribute('data-shipping-profile-id') || undefined;
   const sameAddress = isSameAddress();
   const orderData = {
-    pageId: "X7Ru-iSqk3ioPHLJ2F8PczukqBTldRy50U5OVtRzSvXlNPchIpn9l9PNT1nN17jT",
+    pageId: "o03C_6rV204JlWBXGYGh2DeaVNzRROQkhNKYZ3fU9KcbiNPDlaewmv2I0eTOrZIx",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -1996,6 +2260,7 @@ async function createOrderViaPaypal(isExpress = false) {
   if (isTest && window.location.hostname === "localhost") {
     console.log("Sending order to VRIO", { sanitizedOrderData });
   }
+  try { sessionStorage.removeItem('klaviyo_profile_updated'); } catch(e) {}
   try {
     if (typeof validateAndSendToKlaviyo === "function") {
       const klaviyoPreOrderData = { ...sanitizedOrderData };
@@ -2110,7 +2375,7 @@ async function createOrderViaKlarna() {
   const sameAddress = isSameAddress();
 
   const orderData = {
-    pageId: "X7Ru-iSqk3ioPHLJ2F8PczukqBTldRy50U5OVtRzSvXlNPchIpn9l9PNT1nN17jT",
+    pageId: "o03C_6rV204JlWBXGYGh2DeaVNzRROQkhNKYZ3fU9KcbiNPDlaewmv2I0eTOrZIx",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1,
     email: email,
@@ -2308,6 +2573,7 @@ async function createOrderViaKlarna() {
     console.log("Sending Klarna order to VRIO", { sanitizedOrderData });
   }
 
+  try { sessionStorage.removeItem('klaviyo_profile_updated'); } catch(e) {}
   try {
     if (typeof validateAndSendToKlaviyo === "function") {
       const klaviyoPreOrderData = { ...sanitizedOrderData };
@@ -2489,7 +2755,7 @@ async function createOrderViaCreditCard() {
   let orderTotal = Math.max(0, Number(selectedProduct.price) * selectedProduct.quantity);
 
   const orderData = {
-    pageId: "X7Ru-iSqk3ioPHLJ2F8PczukqBTldRy50U5OVtRzSvXlNPchIpn9l9PNT1nN17jT",
+    pageId: "o03C_6rV204JlWBXGYGh2DeaVNzRROQkhNKYZ3fU9KcbiNPDlaewmv2I0eTOrZIx",
     action: "process",
     campaign_id: CAMPAIGN_ID,
     connection_id: 1, // VRIO URL ending /connection
@@ -2799,6 +3065,13 @@ async function createOrderViaCreditCard() {
     } catch (error) {
       console.error("Error validating and sending to Klaviyo", error);
     }
+    try {
+      if (typeof sendKlaviyoOrderEvents === 'function') {
+        await sendKlaviyoOrderEvents(sanitizedOrderData, result, true);
+      }
+    } catch (error) {
+      console.error("Error sending order events to Klaviyo", error);
+    }
 
     let orderSummary = sessionStorage.getItem("orderSummary");
     if (!orderSummary) {
@@ -2979,6 +3252,7 @@ async function sendLead() {
     page_url: window.location.href,
     order_data: sanitizedOrderData,
   });
+  try { sessionStorage.removeItem('klaviyo_profile_updated'); } catch(e) {}
   try {
     if (typeof validateAndSendToKlaviyo === "function") {
       const klaviyoLeadData = {
@@ -3173,6 +3447,83 @@ const populateCountries = (countryEl) => {
     if (isTest) console.error(error);
   }
 };
+
+
+(function() {
+  const _vpSessionKey = 'klaviyo_viewed_pages';
+
+  function isValidEmailForKlaviyo(email) {
+    if (!email) return false;
+    return /^[^s@]+@[^s@]+.[^s@]+$/.test(String(email).trim());
+  }
+
+  function identifyKlaviyoEmail(email, source) {
+    if (!isValidEmailForKlaviyo(email)) return false;
+    try {
+      window.klaviyo = window.klaviyo || [];
+      window.klaviyo.push(["identify", { email: String(email).trim() }]);
+      logKlaviyoLifecycle("identify_send", {
+        source: source || "unknown",
+        emailHint: String(email)
+          .trim()
+          .replace(/(.?).*@(.*)/, "$1***@$2")
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function bindEmailBlurIdentify() {
+    var emailEl = document.querySelector("[data-email]");
+    if (!emailEl) return;
+    if (emailEl.dataset.klaviyoIdentifyBound === "1") return;
+    emailEl.dataset.klaviyoIdentifyBound = "1";
+    emailEl.addEventListener("blur", function () {
+      identifyKlaviyoEmail(emailEl.value, "email_blur");
+    });
+  }
+
+  function _fireViewedPage() {
+    if (typeof KLAVIYO_PUBLIC_API_KEY === 'undefined' || !KLAVIYO_PUBLIC_API_KEY) return;
+    bindEmailBlurIdentify();
+    try {
+      const eventDataRaw = sessionStorage.getItem("addressData");
+      if (eventDataRaw) {
+        const eventDataParsed = JSON.parse(eventDataRaw);
+        if (eventDataParsed && eventDataParsed.email) {
+          identifyKlaviyoEmail(
+            eventDataParsed.email,
+            "viewed_page_session_eventData"
+          );
+        }
+      }
+    } catch (e) {}
+    try {
+      var _vpVisited = [];
+      try { _vpVisited = JSON.parse(sessionStorage.getItem(_vpSessionKey) || '[]'); } catch(e) {}
+      var _vpPath = window.location.pathname;
+      if (_vpVisited.indexOf(_vpPath) !== -1) return;
+      _vpVisited.push(_vpPath);
+      sessionStorage.setItem(_vpSessionKey, JSON.stringify(_vpVisited));
+    } catch(e) {}
+    window.klaviyo = window.klaviyo || [];
+    window.klaviyo.push(['track', 'Viewed Page', {
+      offer: "Vi-Shift - Network",
+      page_type: "Checkout",
+      hostName: window.location.hostname,
+      pagePath: window.location.pathname,
+      url: window.location.href,
+    }]);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _fireViewedPage);
+  } else {
+    _fireViewedPage()
+  }
+})();
+
 
 document.addEventListener("DOMContentLoaded", async () => {
   
@@ -3423,7 +3774,20 @@ if (typeof validateAndSendToKlaviyo === "function") {
       } catch (error) {
         console.error("Error sending transaction to data layer", error);
       }
-      window.location.href = "/" + nextPageSlug;
+      try {
+        if (typeof sendKlaviyoOrderEvents === 'function') {
+          await sendKlaviyoOrderEvents(orderData, result, true);
+        }
+      } catch (error) {
+        console.error("Error sending order events to Klaviyo", error);
+      }
+      const redirectSlug =
+        typeof nextPageSlug === "string" && nextPageSlug.length > 0
+          ? nextPageSlug.startsWith("/")
+            ? nextPageSlug
+            : "/" + nextPageSlug
+          : "/";
+      window.location.href = redirectSlug;
     } else {
       if (!isLive) await flagOrderAsTest(resultOrderId);
 
@@ -4917,7 +5281,7 @@ async function returnPaypal() {
 ;
 
     const body = {
-        pageId: "X7Ru-iSqk3ioPHLJ2F8PczukqBTldRy50U5OVtRzSvXlNPchIpn9l9PNT1nN17jT",
+        pageId: "o03C_6rV204JlWBXGYGh2DeaVNzRROQkhNKYZ3fU9KcbiNPDlaewmv2I0eTOrZIx",
         action: "process",
         campaign_id: CAMPAIGN_ID,
         connection_id: 1,
@@ -5046,6 +5410,13 @@ async function returnPaypal() {
 
       const result = await response.json();
       if (result.success) {
+        try {
+          if (typeof sendKlaviyoOrderEvents === 'function') {
+            await sendKlaviyoOrderEvents(orderData, result, true);
+          }
+        } catch (error) {
+          console.error("Error sending order events to Klaviyo", error);
+        }
         sessionStorage.removeItem('cart');
         sessionStorage.removeItem('cart_token');
         sessionStorage.removeItem('payment_token_id');
@@ -5678,6 +6049,21 @@ function handleFreeGiftParam(allProducts) {
               id: foundProduct.id || 0,
               price: unitPrices[index],
             };
+
+            const cardTextMatch = (card.textContent || '').match(/(\d+)\s*%\s*off/i);
+            const discountPct = Number(card.getAttribute('data-product-discount')) || Number(foundProduct.discountPercentage) || (cardTextMatch ? Number(cardTextMatch[1]) : 0);
+            if (discountPct) {
+              document.querySelectorAll('.mvmt-discount-amount').forEach((el) => {
+                if (/^\d+$/.test((el.textContent || '').trim())) {
+                  el.textContent = String(discountPct);
+                }
+              });
+              document.querySelectorAll('[data-url-param-timer] span').forEach((el) => {
+                if (el.textContent && /\d+%\s*discount/i.test(el.textContent)) {
+                  el.textContent = el.textContent.replace(/\d+(?=%\s*discount)/i, String(discountPct));
+                }
+              });
+            }
           }
         }
 

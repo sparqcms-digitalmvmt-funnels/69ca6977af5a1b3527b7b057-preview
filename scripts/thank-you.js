@@ -1,6 +1,710 @@
 
-  
-// Select campaign based on whether this is a VIP page or not  
+const KLAVIYO_PUBLIC_API_KEY = 'XsRPnE';
+
+const EMAIL_OVERSIGHT_VALIDATE_URL = 'https://app-cms-api-proxy-dev-001.azurewebsites.net/integration/email-oversight/validate-public';
+
+
+(function() {
+  try {
+    var klaviyoLifecyclePayload = {
+      id: 'log_' + Date.now() + '_' + Math.random().toString(16).slice(2, 8),
+      timestamp: Date.now(),
+      location: "builder-events/thank-you/vrio-thank-you-js-generator.ts" + ':KlaviyoLifecycle:initialized',
+      message: 'Klaviyo lifecycle: initialized',
+      runId: 'initial',
+      hypothesisId: 'KlaviyoLifecycle',
+      data: {
+        pageName: "Thank you",
+        pageType: "ThankYou",
+        klaviyoConfigured: true,
+        emailOversightConfigured: typeof EMAIL_OVERSIGHT_VALIDATE_URL !== 'undefined' && !!EMAIL_OVERSIGHT_VALIDATE_URL,
+        klaviyoKeyPrefix: typeof KLAVIYO_PUBLIC_API_KEY === 'string' && KLAVIYO_PUBLIC_API_KEY.length >= 8 ? KLAVIYO_PUBLIC_API_KEY.slice(0, 8) : null,
+      },
+    };
+    if (isKlaviyoDebugEnabled() && typeof console !== 'undefined' && console.log) {
+      console.log('[Klaviyo lifecycle] initialized ' + JSON.stringify(klaviyoLifecyclePayload.data));
+    }
+    try {
+      if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('klaviyo_first_page') && typeof window !== 'undefined' && window.location)
+        sessionStorage.setItem('klaviyo_first_page', window.location.href);
+    } catch (e) {}
+  } catch (e) {}
+})();
+
+function isKlaviyoDebugEnabled() {
+  var debugEnabled = false;
+  try {
+    debugEnabled = !!(typeof window !== 'undefined' && window.__KLAVIYO_DEBUG__ === true);
+    if (!debugEnabled) {
+      debugEnabled = !!(isTest && typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost');
+    }
+  } catch (e) {}
+  return debugEnabled;
+}
+
+function logKlaviyoTrace(step, data) {
+  if (!isKlaviyoDebugEnabled()) return;
+  try {
+    var payload = {
+      id: 'log_' + Date.now() + '_' + Math.random().toString(16).slice(2, 8),
+      timestamp: Date.now(),
+      location: "builder-events/thank-you/vrio-thank-you-js-generator.ts" + ':KlaviyoTrace',
+      message: '[Klaviyo trace] ' + step,
+      runId: 'initial',
+      hypothesisId: 'KlaviyoTrace',
+      data: data || {},
+    };
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[Klaviyo trace] ' + step + ' ' + JSON.stringify(data || {}));
+    }
+  } catch (e) {}
+}
+
+function logKlaviyoLifecycle(step, data) {
+  if (isKlaviyoDebugEnabled() && typeof console !== 'undefined' && console.log) {
+    console.log('[Klaviyo lifecycle] ' + step + ' ' + JSON.stringify(data || {}));
+  }
+}
+
+function getAttributionForKlaviyo() {
+  var q = (typeof window !== 'undefined' && window.location && window.location.search) ? window.location.search : '';
+  if (typeof window !== 'undefined' && window.location && window.location.hash && window.location.hash.indexOf('?') >= 0) {
+    q = q || ('?' + window.location.hash.split('?')[1]);
+  }
+  var params = new URLSearchParams(q);
+  var firstPage = null;
+  try {
+    firstPage = sessionStorage.getItem('klaviyo_first_page');
+    if (!firstPage && typeof window !== 'undefined' && window.location) {
+      firstPage = window.location.href;
+      sessionStorage.setItem('klaviyo_first_page', firstPage);
+    }
+  } catch (e) {}
+  var o = {};
+  if (params.get('utm_source')) o.utm_source = params.get('utm_source');
+  if (params.get('utm_medium')) o.utm_medium = params.get('utm_medium');
+  if (params.get('utm_campaign')) o.utm_campaign = params.get('utm_campaign');
+  if (params.get('utm_content')) o.utm_content = params.get('utm_content');
+  if (params.get('utm_term')) o.utm_term = params.get('utm_term');
+  if (typeof document !== 'undefined' && document.referrer) o.referrer = document.referrer;
+  if (firstPage) o.first_page = firstPage;
+  return o;
+}
+
+function getRegularPrice(fallbackPrice, productId) {
+  try {
+    const baseSels = ['[data-holder="product_full_price"]', '[data_product_full_price]'];
+    const selector = productId
+      ? baseSels.map(s => '[data-product-card][data-product-id="' + productId + '"] ' + s).join(', ')
+      : baseSels.join(', ');
+    const el = document.querySelector(selector);
+    if (el) {
+      const text = el.textContent;
+      if (!text) return fallbackPrice;
+      const raw = text.replace(/[^0-9.,]/g, '');
+      const lastComma = raw.lastIndexOf(',');
+      const lastDot = raw.lastIndexOf('.');
+
+      let normalized;
+      if (lastDot === -1 && /^d+,d{3}$/.test(raw)) {
+        // "1,234"
+        normalized = raw.replace(/,/g, '');
+      } else if (lastComma > lastDot) {
+        // "1.234,56"
+        normalized = raw.replace(/./g, '').replace(',', '.');
+      } else {
+        // "1,234.56" or "1.23"
+        normalized = raw.replace(/,/g, '');
+      }
+
+      const v = parseFloat(normalized);
+      if (!isNaN(v) && v > 0) return v;
+    }
+  } catch(e) {
+    console.error('Error getting regular price', e);
+  }
+  return fallbackPrice;
+}
+
+function getKlaviyoPaymentMethod(paymentMethodId, cardTypeId) {
+  const pmId = Number(paymentMethodId);
+  if (pmId === 1) {
+    const cardMap = { 1: 'Mastercard', 2: 'Visa', 3: 'Discover', 4: 'American Express', 5: 'Digital Wallet', 6: 'ACH', 7: 'SEPA' };
+    return cardMap[Number(cardTypeId)] || 'Credit Card';
+  }
+  const pmMap = { 3: 'Google Pay', 4: 'Apple Pay', 6: 'PayPal', 12: 'Klarna' };
+  return pmMap[pmId] || '';
+}
+
+function getDialCodeFromItiDom(telEl) {
+  try {
+    if (!telEl) return null;
+    var itiWrapper = telEl.closest && telEl.closest(".iti");
+    var selectedEl = itiWrapper && itiWrapper.querySelector && itiWrapper.querySelector(".iti__selected-country-primary");
+    var selectedText = selectedEl && selectedEl.textContent ? String(selectedEl.textContent).trim() : "";
+    var dialMatch = selectedText ? selectedText.match(/\+(\d+)/) : null;
+    return (dialMatch && dialMatch[1]) ? dialMatch[1] : null;
+  } catch (e) { return null; }
+}
+
+const KLAVIYO_API_REVISION = '2026-01-15';
+
+// eventData             — customer contact info (email, name, phone, address) used for profile update AND email validation
+// eventName             — Klaviyo metric name for single-event calls; ignored when batchItems is set (names come from each item)
+// source                — event source label sent with the event
+// eventPropertiesToSend — explicit event properties to send; when null, built from eventData automatically
+// batchItems            — array of { name, properties } for bulk-create; when set, fires one /client/event-bulk-create instead of /client/events
+//
+// Profile update + subscription fire on every call UNLESS klaviyo_profile_updated is set in sessionStorage (meaning
+// a prior call already succeeded). Call sessionStorage.removeItem('klaviyo_profile_updated') before the first event
+// of a new submit attempt to ensure it always fires regardless of prior success.
+async function sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems) {
+  if (!KLAVIYO_PUBLIC_API_KEY || !eventData || !eventData.email) return;
+
+  var sendData = { eventName: eventName, source: source, emailHint: (eventData.email || '').replace(/(.?).*@(.*)/, '$1***@$2') };
+  logKlaviyoTrace('send', sendData);
+
+  var attributionProps = getAttributionForKlaviyo();
+
+  const attributes = {
+    email: eventData.email,
+  };
+
+  const firstName = eventData.firstName || eventData.first_name || eventData.ship_fname || eventData.bill_fname;
+  const lastName = eventData.lastName || eventData.last_name || eventData.ship_lname || eventData.bill_lname;
+
+  if (firstName) attributes.first_name = firstName;
+  if (lastName) attributes.last_name = lastName;
+  var phoneE164 = null;
+  var phoneSource = null;
+  var countryIso = null;
+  try {
+    var telEl = document.querySelector("[data-telephone]");
+    if (telEl) {
+      var iti = null;
+      try {
+        if (typeof window !== "undefined" && window.intlTelInputGlobals && typeof window.intlTelInputGlobals.getInstance === "function") {
+          iti = window.intlTelInputGlobals.getInstance(telEl);
+        }
+      } catch (e) {}
+      if (iti && typeof iti.getNumber === "function") {
+        phoneE164 = iti.getNumber();
+        if (phoneE164) phoneSource = 'intlTelInput';
+      }
+      if (!countryIso && iti && typeof iti.getSelectedCountryData === "function") {
+        var cData = iti.getSelectedCountryData();
+        if (cData && cData.iso2) {
+          countryIso = String(cData.iso2).toUpperCase();
+        }
+      }
+    }
+  } catch (e) {}
+  if (!phoneE164) {
+    var rawPhone = eventData.phone || eventData.phone_number;
+    var dialCodeFromDom = getDialCodeFromItiDom(telEl);
+    if (rawPhone) {
+      var p = String(rawPhone).trim();
+      if (p) {
+        var digits = p.replace(/\D/g, "");
+        if (dialCodeFromDom && digits) {
+          var nationalDigits = digits.indexOf(dialCodeFromDom) === 0 ? digits.slice(dialCodeFromDom.length) : digits;
+          if (nationalDigits && nationalDigits.length >= 7) {
+            phoneE164 = "+" + dialCodeFromDom + nationalDigits;
+            phoneSource = 'eventData';
+          }
+        }
+        if (!phoneE164) {
+          if (!countryIso) {
+            countryIso = (eventData.ship_country || eventData.bill_country || eventData.shippingCountry || eventData.billingCountry || "").toUpperCase();
+          }
+          if (digits.length === 10 && digits[0] !== "0") {
+             phoneE164 = (countryIso === "CA" || countryIso === "US") ? "+1" + digits : "+" + digits;
+          } else if (digits.length === 11 && digits[0] === "1") {
+            phoneE164 = "+" + digits;
+          } else if (p.charAt(0) === "+") {
+            phoneE164 = p.replace(/\s/g, "");
+          } else if (digits.length >= 10) {
+            phoneE164 = "+" + digits;
+          }
+          if (phoneE164) phoneSource = 'eventData';
+        }
+      }
+    }
+  }
+  if (phoneE164) {
+    var digitsOnly = phoneE164.replace(/\D/g, "");
+    var validE164 = digitsOnly.length >= 7 && digitsOnly.length <= 15 && /^[1-9]/.test(digitsOnly);
+    if (validE164) {
+      phoneE164 = "+" + digitsOnly;
+      logKlaviyoLifecycle('phone_resolved', { hasPhone: true, source: phoneSource, e164Redacted: phoneE164.length >= 4 ? '***' + phoneE164.slice(-4) : '***' });
+    } else {
+      logKlaviyoLifecycle('phone_skipped', { reason: 'not_e164' });
+      phoneE164 = null;
+    }
+  } else if (eventData.phone || eventData.phone_number) {
+    logKlaviyoLifecycle('phone_skipped', { reason: 'invalid' });
+  } else {
+    logKlaviyoLifecycle('phone_resolved', { hasPhone: false, source: null });
+  }
+  if (phoneE164) attributes.phone_number = phoneE164;
+
+  const address1 = eventData.ship_address1 || eventData.bill_address1 || eventData.shippingAddress1 || eventData.billingAddress1;
+  const city = eventData.ship_city || eventData.bill_city || eventData.shippingCity || eventData.billingCity;
+  const region = eventData.ship_state || eventData.bill_state || eventData.shippingState || eventData.billingState;
+  const zip = eventData.ship_zipcode || eventData.bill_zipcode || eventData.shippingZip || eventData.billingZip;
+  const country = eventData.ship_country || eventData.bill_country || eventData.shippingCountry || eventData.billingCountry;
+  if (address1 || city || region || zip || country || eventData.ip_address) {
+    attributes.location = {};
+    if (address1) attributes.location.address1 = address1;
+    if (city) attributes.location.city = city;
+    if (region) attributes.location.region = region;
+    if (zip) attributes.location.zip = zip;
+    if (country) attributes.location.country = country;
+    if (eventData.ip_address) attributes.location.ip = eventData.ip_address;
+  }
+
+  const propertiesForKlaviyo = { ...eventData };
+  [
+    'creditCardNumber',
+    'CVV',
+    'expirationDate',
+    'card_number',
+    'card_cvv',
+    'card_exp_month',
+    'card_exp_year',
+    'phone',
+    'phone_number',
+  ].forEach((key) => {
+    if (key in propertiesForKlaviyo) {
+      delete propertiesForKlaviyo[key];
+    }
+  });
+
+  const klaviyoProfileData = {
+    data: {
+      type: 'profile',
+      attributes: {
+        ...attributes,
+        properties: {
+          ...propertiesForKlaviyo,
+          ...attributionProps,
+          klaviyo_event_name: eventName,
+          source,
+          page: "Thank you",
+          page_type: "ThankYou",
+          vrio_campaign_id: CAMPAIGN_ID,
+        },
+      },
+    },
+  };
+
+  var profileOk = false;
+
+
+  let aosSent = false;
+  try { aosSent = !!sessionStorage.getItem('klaviyo_aos_sent'); } catch(e) {}
+
+  var profileAlreadySent = false;
+  try { profileAlreadySent = !!sessionStorage.getItem('klaviyo_profile_updated'); } catch(e) {}
+
+  var hasLocation = !!(address1 || city || region || zip || country || eventData.ip_address);
+
+  var profilePromise = Promise.resolve();
+  var subscriptionPromise = Promise.resolve();
+
+  if (!profileAlreadySent) {
+    logKlaviyoLifecycle('profile_send_start', { eventName: eventName, hasPhone: !!phoneE164, hasLocation: hasLocation });
+    profilePromise = fetch(`https://a.klaviyo.com/client/profiles?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/vnd.api+json',
+        revision: KLAVIYO_API_REVISION,
+        'content-type': 'application/vnd.api+json',
+      },
+      body: JSON.stringify(klaviyoProfileData),
+      keepalive: true,
+    }).then(function(res) {
+      profileOk = res.ok;
+      logKlaviyoLifecycle('profile_send_done', { status: res.ok ? 'ok' : 'fail', statusCode: res.status });
+      if (!res.ok) {
+        logKlaviyoTrace('failed', { eventName: eventName, status: res.status });
+        if (isTest && window.location.hostname === "localhost") {
+          res.text().then(function(t) { console.warn(`Klaviyo profile update failed for event '${eventName}':`, res.status, t); });
+        }
+      } else {
+        logKlaviyoTrace('sent', { eventName: eventName });
+        try { sessionStorage.setItem('klaviyo_profile_updated', '1'); } catch(e) {}
+        if (isTest && window.location.hostname === "localhost") {
+          res.json().then(function(j) { console.log('Klaviyo profile updated for event \'' + eventName + '\':', JSON.stringify(j)); });
+        }
+        if (!aosSent) {
+          try {
+            const aosUa = navigator.userAgent || '';
+            const aosOs = /Android/i.test(aosUa) ? 'Android'
+              : /iPhone|iPad|iPod/i.test(aosUa) ? 'iOS'
+              : /Windows/i.test(aosUa) ? 'Windows'
+              : /Mac/i.test(aosUa) ? 'MacOS'
+              : /Linux/i.test(aosUa) ? 'Linux' : 'Unknown';
+            const aosBrowser = /Edg\//i.test(aosUa) ? 'Edge'
+              : /OPR\//i.test(aosUa) ? 'Opera'
+              : /Chrome/i.test(aosUa) ? 'Chrome'
+              : /Firefox/i.test(aosUa) ? 'Firefox'
+              : /Safari/i.test(aosUa) ? 'Safari'
+              : 'Unknown';
+            const aosFirstPage = sessionStorage.getItem('klaviyo_first_page') || window.location.href;
+            const aosSearchParams = (function() { try { return new URL(aosFirstPage).searchParams; } catch(e2) { return new URLSearchParams(window.location.search); } })();
+            fetch(`https://a.klaviyo.com/client/events?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+              method: 'POST',
+              headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
+              body: JSON.stringify({
+                data: {
+                  type: 'event',
+                  attributes: {
+                    metric: { data: { type: 'metric', attributes: { name: 'Active on Site' } } },
+                    profile: { data: { type: 'profile', attributes: { email: eventData.email } } },
+                    properties: {
+                      referrer: document.referrer || '',
+                      uid: sessionStorage.getItem('uid') || aosSearchParams.get('uid') || '',
+                      oid: sessionStorage.getItem('oid') || aosSearchParams.get('oid') || '',
+                      sub5: sessionStorage.getItem('sub5') || aosSearchParams.get('sub5') || '',
+                      C1: sessionStorage.getItem('C1') || sessionStorage.getItem('c1') || aosSearchParams.get('C1') || aosSearchParams.get('c1') || '',
+                      affid: sessionStorage.getItem('affid') || aosSearchParams.get('affid') || '',
+                      os: aosOs,
+                      browser: aosBrowser,
+                      initial_page_path: (function() { try { return new URL(aosFirstPage).pathname; } catch(e2) { return window.location.pathname; } })(),
+                      page: window.location.href,
+                    },
+                    time: new Date().toISOString(),
+                    unique_id: 'Active on Site_' + eventData.email + '_' + Date.now(),
+                  },
+                },
+              }),
+              keepalive: true,
+            }).then(function(res) {
+              if (res.ok) {
+                try { sessionStorage.setItem('klaviyo_aos_sent', '1'); } catch(e) {}
+                logKlaviyoLifecycle('active_on_site_sent', { email: (eventData.email || '').replace(/(.?).*@(.*)/, '$1***@$2') });
+              } else {
+                logKlaviyoTrace('failed', { eventName: 'Active on Site', status: res.status });
+              }
+            }).catch(function(e) {
+              if (typeof console !== 'undefined' && console.error) console.error('Error sending Active on Site event', e);
+            });
+          } catch(e) {
+            if (typeof console !== 'undefined' && console.error) console.error('Error sending Active on Site event', e);
+          }
+        }
+      }
+      return res;
+    }).catch(function(err) {
+      logKlaviyoLifecycle('profile_send_done', { status: 'fail' });
+      logKlaviyoTrace('error', { eventName: eventName, error: String(err && err.message) });
+      if (isTest && window.location.hostname === "localhost") {
+        if (typeof console !== 'undefined' && console.error) console.error(`Klaviyo error for event '${eventName}':`, err);
+      }
+    });
+
+
+  logKlaviyoLifecycle('subscription_skipped', { reason: 'no_list_id' });
+  var subscriptionPromise = Promise.resolve();
+
+  } else {
+    profileOk = true; // already succeeded this submit attempt, allow event tracking
+  }
+
+  await Promise.allSettled([profilePromise, subscriptionPromise]);
+
+  if (profileOk) {
+    try {
+      if (batchItems) {
+        const payloads = batchItems.map((item, index) => {
+          return {
+            type: 'event',
+            attributes: {
+              metric: { data: { type: 'metric', attributes: { name: item.name } } },
+              properties: { ...item.properties },
+              time: new Date().toISOString(),
+              unique_id: item.name + '_' + (eventData.email || '') + '_' + Date.now() + '_' + index,
+            },
+          };
+        });
+        const bulkRes = await fetch(`https://a.klaviyo.com/client/event-bulk-create?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+          method: 'POST',
+          headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
+          body: JSON.stringify({
+            data: {
+              type: 'event-bulk-create',
+              attributes: {
+                profile: { data: { type: 'profile', attributes: { email: eventData.email } } },
+                events: { data: payloads },
+              },
+            },
+          }),
+          keepalive: true,
+        });
+        if (!bulkRes.ok && typeof console !== 'undefined' && console.warn) {
+          console.warn('[Klaviyo] bulk event create failed', bulkRes.status);
+        }
+      } else {
+        const eventPayload = {
+          type: 'event',
+          attributes: {
+            metric: { data: { type: 'metric', attributes: { name: eventName } } },
+            profile: { data: { type: 'profile', attributes: { email: eventData.email } } },
+            properties: eventPropertiesToSend
+              ? Object.assign({}, eventPropertiesToSend)
+              : Object.assign({}, propertiesForKlaviyo, attributionProps, {
+                  source: source,
+                  page: "Thank you",
+                  page_type: "ThankYou",
+                  vrio_campaign_id: CAMPAIGN_ID,
+                  klaviyo_event_name: eventName,
+                }),
+            time: new Date().toISOString(),
+            unique_id: eventName + '_' + (eventData.email || '') + '_' + Date.now(),
+          },
+        };
+        const eventRes = await fetch(`https://a.klaviyo.com/client/events?company_id=${KLAVIYO_PUBLIC_API_KEY}`, {
+          method: 'POST',
+          headers: { accept: 'application/vnd.api+json', revision: KLAVIYO_API_REVISION, 'content-type': 'application/vnd.api+json' },
+          body: JSON.stringify({ data: eventPayload }),
+          keepalive: true,
+        });
+        if (!eventRes.ok && typeof console !== 'undefined' && console.warn) {
+          console.warn('[Klaviyo] event track failed', eventRes.status);
+        }
+      }
+    } catch (e) {}
+  }
+}
+
+async function validateAndSendToKlaviyo(eventData, eventName, source, eventPropertiesToSend, batchItems) {
+  try {
+    if (!eventData || !eventData.email || typeof EMAIL_OVERSIGHT_VALIDATE_URL === 'undefined' || !EMAIL_OVERSIGHT_VALIDATE_URL) {
+      logKlaviyoTrace('EO skip (no URL or email), sending to Klaviyo', { eventName: eventName, source: source });
+      await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
+      return;
+    }
+
+    logKlaviyoTrace('EO validate', { eventName: eventName, source: source, emailHint: (eventData.email || '').replace(/(.?).*@(.*)/, '$1***@$2') });
+
+    const payload = {
+      email: eventData.email,
+      source,
+    };
+
+    const response = await fetch(EMAIL_OVERSIGHT_VALIDATE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+
+    if (!response.ok) {
+      logKlaviyoTrace('EO request failed, fallback to Klaviyo', { eventName: eventName, status: response.status });
+      await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
+      return;
+    }
+
+    const result = await response.json();
+
+    if (result && result.valid === false) {
+      logKlaviyoTrace('EO invalid, skipping Klaviyo', { eventName: eventName, reason: result.reason });
+      return;
+    }
+
+    logKlaviyoTrace('EO valid, sending to Klaviyo', { eventName: eventName });
+    await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
+  } catch (error) {
+    logKlaviyoTrace('EO error, fallback to Klaviyo', { eventName: eventName, error: String(error && error.message) });
+    await sendKlaviyoEvent(eventData, eventName, source, eventPropertiesToSend, batchItems);
+  }
+}
+
+async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedOrder) {
+  if (typeof validateAndSendToKlaviyo !== 'function') return;
+  if (!result || !result.order) return;
+  const kCart = result.order.cart || null;
+  const offers = (kCart && kCart.offers) || result.order.order_offers || [];
+  const kIsCartItem = !!(kCart && kCart.offers);
+  const kOrderId = result.order_id || result.order.order_id || '';
+  const kIsTest = (result.order.is_test != null ? result.order.is_test : sanitizedOrderData.is_test) ? 1 : 0;
+  const kCardTypeId = (result.order.customer_card && result.order.customer_card.card_type_id) || sanitizedOrderData.card_type_id;
+  const kPaymentMethod = getKlaviyoPaymentMethod(sanitizedOrderData.payment_method_id, kCardTypeId);
+  const kShipping = kCart ? kCart.total_shipping : '';
+  const kTax = kCart ? kCart.total_tax : '';
+  const kExperiment = new URLSearchParams(window.location.search).get('experiment') || '';
+
+  const orderedItems = [];
+  const batchItems = [];
+
+  for (let i = 0; i < offers.length; i++) {
+    const item = offers[i];
+    const kOrderOffer = kIsCartItem
+      ? ((result.order.order_offers || []).find(oo => (oo.order_offer_items || [])[0] && oo.order_offer_items[0].item_id == item.item_id) || {})
+      : item;
+    const kOrderOfferItem = (kOrderOffer.order_offer_items || [])[0] || {};
+    const kItemId = item.item_id || kOrderOfferItem.item_id || '';
+    if (document.querySelector('[data-shippable-product-id="' + kItemId + '"]')) continue;
+
+    const kItemName = item.item_name || kOrderOfferItem.item_name || '';
+    const kSku = kOrderOfferItem.item_sku || kItemName || '';
+    const kProductName = kOrderOfferItem.item_name || kItemName || '';
+    const kOfferName = item.offer_name || item.offer_title || kItemName || '';
+    const kQty = item.order_offer_quantity || 1;
+    const kPackageQty = (String(kItemName).match(/(d+)s*x/i) || [])[1] || kQty || 1;
+    const kSalePrice = Number(item.total || item.order_offer_price) || '';
+    const kSubtotal = Number(item.subtotal || kSalePrice) || '';
+    const kRegPrice = getRegularPrice(kSalePrice, kItemId) || '';
+    const kDiscountCode = item.discount_code || '';
+
+    const orderedProps = {
+      name: kItemName, SKU: kSku, ProductName: kProductName,
+      Quantity: kQty, packageQuantity: kPackageQty,
+      individualPrice: kSalePrice, ItemPrice: kSalePrice, subtotal: kSubtotal,
+      RowTotal: kSalePrice, total: kSalePrice, '$value': kSalePrice, regprice: kRegPrice,
+      DiscountCode: kDiscountCode, PaymentMethod: kPaymentMethod,
+      OrderId: kOrderId, isTestOrder: kIsTest,
+      shippingMethod: kShipping, shippingAmount: kShipping,
+      tax: kTax,
+      offer: kOfferName, page_type: "ThankYou",
+      hostName: window.location.hostname, pagePath: window.location.pathname,
+      step: "thankyou", group: "thankyou",
+      ProductURL: window.location.href, experiment: kExperiment,
+    };
+    orderedItems.push(orderedProps);
+    batchItems.push({ name: 'Ordered "' + kItemName + '"', properties: orderedProps });
+  }
+
+  if (batchItems.length > 0) {
+    await validateAndSendToKlaviyo(sanitizedOrderData, null, 'order', null, batchItems);
+  }
+
+  if (includePlacedOrder) {
+    const kTotal = kCart?.total || (result.order.order_offers || []).reduce((sum, oo) => sum + Number(oo.order_offer_price || 0), 0);
+    const kSubtotal = kCart?.subtotal || kTotal;
+    const kOfferNames = [...new Set(orderedItems.map(o => o.offer).filter(Boolean))].join(', ');
+
+    await validateAndSendToKlaviyo(sanitizedOrderData, 'Placed Order for "$' + Number(kTotal).toFixed(2) + '"', 'order', {
+      OrderId: kOrderId,
+      isTestOrder: kIsTest,
+      PaymentMethod: kPaymentMethod,
+      subtotal: kSubtotal,
+      shippingAmount: kShipping,
+      shippingMethod: kShipping,
+      tax: kTax,
+      total: kTotal, '$value': kTotal,
+      DiscountCode: (kCart && kCart.order && kCart.order.discount_code) || sanitizedOrderData.discount_code || '',
+      offer: kOfferNames, page_type: "ThankYou", step: "thankyou",
+      hostName: window.location.hostname, pagePath: window.location.pathname, from: 'klaviyo_lib', experiment: kExperiment,
+      BillingAddress: JSON.stringify({
+        FirstName: sanitizedOrderData.bill_fname || (kCart && kCart.bill_fname) || '', LastName: sanitizedOrderData.bill_lname || (kCart && kCart.bill_lname) || '',
+        Address1: sanitizedOrderData.bill_address1 || (kCart && kCart.bill_address1) || '', Address2: sanitizedOrderData.bill_address2 || (kCart && kCart.bill_address2) || '',
+        City: sanitizedOrderData.bill_city || (kCart && kCart.bill_city) || '',
+        Region: sanitizedOrderData.bill_state || (kCart && kCart.bill_state) || '',
+        RegionCode: (kCart && kCart.bill_state) || sanitizedOrderData.bill_state || '',
+        PostalCode: sanitizedOrderData.bill_zipcode || (kCart && kCart.bill_zipcode) || '',
+        CountryCode: sanitizedOrderData.bill_country || (kCart && kCart.bill_country) || '', Country: sanitizedOrderData.bill_country || (kCart && kCart.bill_country) || '',
+        PhoneNumber: sanitizedOrderData.phone || '', EmailAddress: sanitizedOrderData.email || '',
+      }),
+      ShippingAddress: JSON.stringify({
+        FirstName: sanitizedOrderData.ship_fname || (kCart && kCart.ship_fname) || '', LastName: sanitizedOrderData.ship_lname || (kCart && kCart.ship_lname) || '',
+        Address1: sanitizedOrderData.ship_address1 || (kCart && kCart.ship_address1) || '', Address2: sanitizedOrderData.ship_address2 || (kCart && kCart.ship_address2) || '',
+        City: sanitizedOrderData.ship_city || (kCart && kCart.ship_city) || '',
+        Region: sanitizedOrderData.ship_state || (kCart && kCart.ship_state) || '',
+        RegionCode: (kCart && kCart.ship_state) || sanitizedOrderData.ship_state || '',
+        PostalCode: sanitizedOrderData.ship_zipcode || (kCart && kCart.ship_zipcode) || '',
+        CountryCode: sanitizedOrderData.ship_country || (kCart && kCart.ship_country) || '', Country: sanitizedOrderData.ship_country || (kCart && kCart.ship_country) || '',
+        PhoneNumber: sanitizedOrderData.phone || '', EmailAddress: sanitizedOrderData.email || '',
+      }),
+      Items: JSON.stringify(orderedItems.map(({ name, SKU, ProductName, Quantity, packageQuantity, ItemPrice, individualPrice, RowTotal, regprice, group, ProductURL }) => ({
+        group, Quantity, ProductName, SKU, name, ItemPrice, individualPrice, RowTotal, packageQuantity, regprice, ProductURL,
+      }))),
+    }, null);
+  }
+}
+
+
+
+(function() {
+  const _vpSessionKey = 'klaviyo_viewed_pages';
+
+  function isValidEmailForKlaviyo(email) {
+    if (!email) return false;
+    return /^[^s@]+@[^s@]+.[^s@]+$/.test(String(email).trim());
+  }
+
+  function identifyKlaviyoEmail(email, source) {
+    if (!isValidEmailForKlaviyo(email)) return false;
+    try {
+      window.klaviyo = window.klaviyo || [];
+      window.klaviyo.push(["identify", { email: String(email).trim() }]);
+      logKlaviyoLifecycle("identify_send", {
+        source: source || "unknown",
+        emailHint: String(email)
+          .trim()
+          .replace(/(.?).*@(.*)/, "$1***@$2")
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function bindEmailBlurIdentify() {
+    var emailEl = document.querySelector("[data-email]");
+    if (!emailEl) return;
+    if (emailEl.dataset.klaviyoIdentifyBound === "1") return;
+    emailEl.dataset.klaviyoIdentifyBound = "1";
+    emailEl.addEventListener("blur", function () {
+      identifyKlaviyoEmail(emailEl.value, "email_blur");
+    });
+  }
+
+  function _fireViewedPage() {
+    if (typeof KLAVIYO_PUBLIC_API_KEY === 'undefined' || !KLAVIYO_PUBLIC_API_KEY) return;
+    bindEmailBlurIdentify();
+    try {
+      const eventDataRaw = sessionStorage.getItem("addressData");
+      if (eventDataRaw) {
+        const eventDataParsed = JSON.parse(eventDataRaw);
+        if (eventDataParsed && eventDataParsed.email) {
+          identifyKlaviyoEmail(
+            eventDataParsed.email,
+            "viewed_page_session_eventData"
+          );
+        }
+      }
+    } catch (e) {}
+    try {
+      var _vpVisited = [];
+      try { _vpVisited = JSON.parse(sessionStorage.getItem(_vpSessionKey) || '[]'); } catch(e) {}
+      var _vpPath = window.location.pathname;
+      if (_vpVisited.indexOf(_vpPath) !== -1) return;
+      _vpVisited.push(_vpPath);
+      sessionStorage.setItem(_vpSessionKey, JSON.stringify(_vpVisited));
+    } catch(e) {}
+    window.klaviyo = window.klaviyo || [];
+    window.klaviyo.push(['track', 'Viewed Page', {
+      offer: "Vi-Shift - Network",
+      page_type: "ThankYou",
+      hostName: window.location.hostname,
+      pagePath: window.location.pathname,
+      url: window.location.href,
+    }]);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _fireViewedPage);
+  } else {
+    _fireViewedPage()
+  }
+})();
+
+
+// Select campaign based on whether this is a VIP page or not
 const getVrioCampaignInfoBasedOnPaymentMethod = (isVipUpsell) => {
     const vrioCampaigns = [{"_id":"696a4531a531c62359271f0b","integration":[{"_id":"685435949a3a8c5ffb4854ef","workspace":"develop","platform":"vrio","description":"dev, team api","fields":{"publicApiKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImFkbWluIiwib3JnYW5pemF0aW9uIjoibXZtdHNhbmRib3gudnJpbyIsImlkIjoiNTQxNzM0MWMtOTI3ZS00YTc5LTk5MTQtMzcxM2IyM2RlMTNlIiwiaWF0IjoxNzUwMDk4ODg1LCJhdWQiOiJ1cm46dnJpbzphcGk6dXNlciIsImlzcyI6InVybjp2cmlvOmFwaTphdXRoZW50aWNhdG9yIiwic3ViIjoidXJuOnZyaW86YXBpOjE4In0.z4qwr2v87T3wq73w1nT8aSASKIMVLnL0HX1E-2tavrs"},"status":"active","createdAt":1750335264215,"updatedAt":1750349204667,"__v":0,"category":"CRM","id":"685435949a3a8c5ffb4854ef"}],"externalId":"39","name":"Vi-Shift - Network - (1)","currency":"USD","countries":[223,38],"metadata":{"campaign_id":39,"campaign_name":"","payment_type_id":1,"campaign_active":true,"campaign_prepaid":true,"campaign_payment_method_required":true,"campaign_group_transactions":true,"campaign_global_js":"","campaign_global_seo_title":"","campaign_global_seo_keywords":"","campaign_global_seo_description":"","date_created":"2026-03-30 16:13:14","created_by":0,"date_modified":"2026-03-30 16:13:14","modified_by":0,"campaign_notes":"","offers":[],"shipping_profiles":[],"campaignId":"39","externalId":39,"description":"","payment_methods":["amex","discover","visa","master"],"alternative_payments":[],"countries":[{"iso_numeric":840,"calling_code":"1","id":223,"name":"United States of America","iso_2":"US","iso_3":"USA"},{"iso_numeric":124,"calling_code":"1","id":38,"name":"Canada","iso_2":"CA","iso_3":"CAN"}]},"funnels":[],"createdAt":1768339039473,"updatedAt":1774887194515,"packages":[],"status":"active","platform":"vrio","__v":6,"id":"696a4531a531c62359271f0b"}];
 
@@ -174,7 +878,7 @@ const THANK_YOU_NEXT_PAGE_SLUG = "";
 function getNextPageSlugForRedirect() {
   const normalize = (value) => {
     if (!value) return "";
-    return value.startsWith("/") ? value : "/" + value;
+    return value.startsWith("/69ca6977af5a1b3527b7b057-preview") ? value : (value.startsWith("/") ? "/69ca6977af5a1b3527b7b057-preview" + value : "/69ca6977af5a1b3527b7b057-preview/" + value);
   };
   if (THANK_YOU_NEXT_PAGE_SLUG) return normalize(THANK_YOU_NEXT_PAGE_SLUG);
   return "/";
@@ -296,7 +1000,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const endpoint =
     `orders?order_id=${orderids.join(",")}` +
-    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=MTBzlgKV09mS1WR_zbDmzjURFFg3koh_uPyQStW8v2ug_ulfBKye96R3WzOPsNol`
+    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=_sB3IJmvUbh8vfaOjsy1tYuVJLF8EHTB8XYDHETDND76-8Tyr7GCHLjHAN4WpPS8`
 
   const response = await fetch(
     `https://app-cms-api-proxy-dev-001.azurewebsites.net/vrio/${endpoint}`,
