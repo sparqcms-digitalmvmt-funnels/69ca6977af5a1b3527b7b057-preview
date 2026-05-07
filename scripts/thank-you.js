@@ -91,40 +91,6 @@ function getAttributionForKlaviyo() {
   return o;
 }
 
-function getRegularPrice(fallbackPrice, productId) {
-  try {
-    const baseSels = ['[data-holder="product_full_price"]', '[data_product_full_price]'];
-    const selector = productId
-      ? baseSels.map(s => '[data-product-card][data-product-id="' + productId + '"] ' + s).join(', ')
-      : baseSels.join(', ');
-    const el = document.querySelector(selector);
-    if (el) {
-      const text = el.textContent;
-      if (!text) return fallbackPrice;
-      const raw = text.replace(/[^0-9.,]/g, '');
-      const lastComma = raw.lastIndexOf(',');
-      const lastDot = raw.lastIndexOf('.');
-
-      let normalized;
-      if (lastDot === -1 && /^d+,d{3}$/.test(raw)) {
-        // "1,234"
-        normalized = raw.replace(/,/g, '');
-      } else if (lastComma > lastDot) {
-        // "1.234,56"
-        normalized = raw.replace(/./g, '').replace(',', '.');
-      } else {
-        // "1,234.56" or "1.23"
-        normalized = raw.replace(/,/g, '');
-      }
-
-      const v = parseFloat(normalized);
-      if (!isNaN(v) && v > 0) return v;
-    }
-  } catch(e) {
-    console.error('Error getting regular price', e);
-  }
-  return fallbackPrice;
-}
 
 function getKlaviyoPaymentMethod(paymentMethodId, cardTypeId) {
   const pmId = Number(paymentMethodId);
@@ -535,7 +501,8 @@ async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedO
   const kPaymentMethod = getKlaviyoPaymentMethod(sanitizedOrderData.payment_method_id, kCardTypeId);
   const kShipping = kCart ? kCart.total_shipping : '';
   const kTax = kCart ? kCart.total_tax : '';
-  const kExperiment = new URLSearchParams(window.location.search).get('experiment') || '';
+  const kShippingMethod = kCart?.order?.shipping_profile_id || sanitizedOrderData.shipping_profile_id || '';
+  const kExperiment = sessionStorage.getItem('convert_experiment_ids') || '';
 
   const orderedItems = [];
   const batchItems = [];
@@ -549,29 +516,32 @@ async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedO
     const kItemId = item.item_id || kOrderOfferItem.item_id || '';
     if (document.querySelector('[data-shippable-product-id="' + kItemId + '"]')) continue;
 
-    const kItemName = item.item_name || kOrderOfferItem.item_name || '';
-    const kSku = kOrderOfferItem.item_sku || kItemName || '';
-    const kProductName = kOrderOfferItem.item_name || kItemName || '';
-    const kOfferName = item.offer_name || item.offer_title || kItemName || '';
+    const kProductEl = kItemId ? document.querySelector('[data-product-id="' + kItemId + '"]') : null;
+    const kPriceEntry = (typeof prices !== 'undefined' && prices) ? prices.find(p => p.id === +kItemId) : null;
+
+    const kItemName = (kPriceEntry && kPriceEntry.productName) || kOrderOfferItem.item_name || '';
+    const kSku = kOrderOfferItem.item_sku || kItemName;
+    const kOfferName = item.offer_name || item.offer_title || (typeof offerName !== 'undefined' ? offerName : '');
     const kQty = item.order_offer_quantity || 1;
-    const kPackageQty = (String(kItemName).match(/(d+)s*x/i) || [])[1] || kQty || 1;
+    const kPackageQty = (kProductEl && Number(kProductEl.dataset.productQuantity)) || 1;
     const kSalePrice = Number(item.total || item.order_offer_price) || '';
     const kSubtotal = Number(item.subtotal || kSalePrice) || '';
-    const kRegPrice = getRegularPrice(kSalePrice, kItemId) || '';
+    const kRegPrice = (kPriceEntry && kPriceEntry.fullPrice) || kSalePrice;
+    const kIndividualPrice = (kQty > 0 && kPackageQty > 0) ? kSalePrice / (kQty * kPackageQty) : kSalePrice;
     const kDiscountCode = item.discount_code || '';
 
     const orderedProps = {
-      name: kItemName, SKU: kSku, ProductName: kProductName,
+      name: kItemName, SKU: kSku, ProductName: kItemName,
       Quantity: kQty, packageQuantity: kPackageQty,
-      individualPrice: kSalePrice, ItemPrice: kSalePrice, subtotal: kSubtotal,
+      individualPrice: kIndividualPrice, ItemPrice: kSalePrice, subtotal: kSubtotal,
       RowTotal: kSalePrice, total: kSalePrice, '$value': kSalePrice, regprice: kRegPrice,
       DiscountCode: kDiscountCode, PaymentMethod: kPaymentMethod,
       OrderId: kOrderId, isTestOrder: kIsTest,
-      shippingMethod: kShipping, shippingAmount: kShipping,
+      shippingMethod: kShippingMethod, shippingAmount: kShipping,
       tax: kTax,
       offer: kOfferName, page_type: "ThankYou",
       hostName: window.location.hostname, pagePath: window.location.pathname,
-      step: "thankyou", group: "thankyou",
+      step: "ThankYou", group: "upsell",
       ProductURL: window.location.href, experiment: kExperiment,
     };
     orderedItems.push(orderedProps);
@@ -585,7 +555,7 @@ async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedO
   if (includePlacedOrder) {
     const kTotal = kCart?.total || (result.order.order_offers || []).reduce((sum, oo) => sum + Number(oo.order_offer_price || 0), 0);
     const kSubtotal = kCart?.subtotal || kTotal;
-    const kOfferNames = [...new Set(orderedItems.map(o => o.offer).filter(Boolean))].join(', ');
+    const kOfferNames = typeof offerName !== 'undefined' ? offerName : [...new Set(orderedItems.map(o => o.offer).filter(Boolean))].join(', ');
 
     await validateAndSendToKlaviyo(sanitizedOrderData, 'Placed Order for "$' + Number(kTotal).toFixed(2) + '"', 'order', {
       OrderId: kOrderId,
@@ -593,11 +563,11 @@ async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedO
       PaymentMethod: kPaymentMethod,
       subtotal: kSubtotal,
       shippingAmount: kShipping,
-      shippingMethod: kShipping,
+      shippingMethod: kShippingMethod,
       tax: kTax,
       total: kTotal, '$value': kTotal,
       DiscountCode: (kCart && kCart.order && kCart.order.discount_code) || sanitizedOrderData.discount_code || '',
-      offer: kOfferNames, page_type: "ThankYou", step: "thankyou",
+      offer: kOfferNames, page_type: "ThankYou", step: "ThankYou",
       hostName: window.location.hostname, pagePath: window.location.pathname, from: 'klaviyo_lib', experiment: kExperiment,
       BillingAddress: JSON.stringify({
         FirstName: sanitizedOrderData.bill_fname || (kCart && kCart.bill_fname) || '', LastName: sanitizedOrderData.bill_lname || (kCart && kCart.bill_lname) || '',
@@ -688,7 +658,7 @@ async function sendKlaviyoOrderEvents(sanitizedOrderData, result, includePlacedO
     } catch(e) {}
     window.klaviyo = window.klaviyo || [];
     window.klaviyo.push(['track', 'Viewed Page', {
-      offer: "Vi-Shift - Network",
+      offer: typeof offerName !== 'undefined' ? offerName : '',
       page_type: "ThankYou",
       hostName: window.location.hostname,
       pagePath: window.location.pathname,
@@ -1000,7 +970,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const endpoint =
     `orders?order_id=${orderids.join(",")}` +
-    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=_sB3IJmvUbh8vfaOjsy1tYuVJLF8EHTB8XYDHETDND76-8Tyr7GCHLjHAN4WpPS8`
+    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=Cc0o7uWK7qAxUYp6D_HHu0zTghc5GejDBIB3p3ZP219_aiZLquCg_OCZ-_3aVUjY`
 
   const response = await fetch(
     `https://app-cms-api-proxy-dev-001.azurewebsites.net/vrio/${endpoint}`,

@@ -84,7 +84,7 @@ if (localStorage.getItem('sK_r')) {
 const route = async () => {
   if (localStorage.getItem('sK_r')) return JSON.parse(localStorage.getItem('sK_r'));
   const sessionId = MVMT.getSessionId() || localStorage.getItem("mvmt_session_id") || "";
-  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177764891556873&sessionId='+sessionId;
+  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177815185705642&sessionId='+sessionId;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -234,11 +234,11 @@ document.addEventListener("DOMContentLoaded", async() => {
   
   </script>
 <script>
-  const offerName = ', Vi';
+  const offerName = 'Vi-Shift';
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({
     'event': 'pageView', 
-    'offer': ', Vi',
+    'offer': 'Vi-Shift',
     'customer_id':sessionStorage.getItem("customerId") || undefined,
     'page':{
       'type':'ThankYou',
