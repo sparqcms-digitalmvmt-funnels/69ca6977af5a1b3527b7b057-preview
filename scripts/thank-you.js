@@ -1,4 +1,36 @@
 
+(function () {
+  var CLASS = 'is-preloading-page';
+  var SELECTOR = '[data-preloader]';
+  function createLoader() {
+    if (document.querySelector(SELECTOR)) return;
+    var style = document.createElement('style');
+    style.textContent = [
+      'html.is-preloading-page { overflow: hidden !important; }',
+      'html.is-preloading-page body { visibility: hidden !important; }',
+      '[data-preloader] { position: fixed !important; inset: 0 !important; background: #fff !important; display: flex; align-items: center; justify-content: center; z-index: 999999999 !important; }',
+      '[data-preloader] .loader { width: 48px; height: 48px; border: 5px solid #124c75; border-bottom-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }',
+      '@keyframes spin { to { transform: rotate(360deg); } }'
+    ].join(' ');
+    document.head.appendChild(style);
+    var loader = document.createElement('div');
+    loader.setAttribute('data-preloader', '');
+    loader.innerHTML = '<div class="loader"></div>';
+    document.documentElement.appendChild(loader);
+  }
+  createLoader();
+  document.documentElement.classList.add(CLASS);
+  window.__hidePreloader = function () {
+    var el = document.querySelector(SELECTOR);
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.25s ease';
+    setTimeout(function () {
+      el.remove();
+      document.documentElement.classList.remove(CLASS);
+    }, 250);
+  };
+})();
 const KLAVIYO_PUBLIC_API_KEY = 'XsRPnE';
 
 const EMAIL_OVERSIGHT_VALIDATE_URL = 'https://app-cms-api-proxy-dev-001.azurewebsites.net/integration/email-oversight/validate-public';
@@ -970,7 +1002,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const endpoint =
     `orders?order_id=${orderids.join(",")}` +
-    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=ZgNIufVI6luOqdl_5Noim6Wd3MhijgWTXmtEqMLMZflMQh9sofTjHNtnIAkBOyMX`
+    `&with=order_offers,customer_address_billing,customer_address_shipping,customer,transactions,cart&pageId=cIPSMfSVsQZXDgvzz46HoAWVIXUMZpoZsI6bLEdkmnSSO9uZ7Bq_8nUivYWeTSNJ`
 
   const response = await fetch(
     `https://app-cms-api-proxy-dev-001.azurewebsites.net/vrio/${endpoint}`,
@@ -1004,6 +1036,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   }
+  if (window.__hidePreloader) window.__hidePreloader();
 
   const orderSummaryItems = document.querySelector(
     "[data-order-summary-items]"
