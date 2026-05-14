@@ -1,0 +1,314 @@
+<!DOCTYPE html><html lang="en"><head><base href="/69ca6977af5a1b3527b7b057-preview/"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  window.HEATMAP_CONTEXT = {
+    funnelId: "69ca6977af5a1b3527b7b057",
+    pageType: "Home",
+    pageName: "Test home"
+  };
+</script><script>/* >> Heatmap.com :: Snippet << */(function (h,e,a,t,m,ap) { (h._heatmap_paq = []).push([ 'setTrackerUrl', (h.heatUrl = e) + a]); h.hErrorLogs=h.hErrorLogs || []; ap=t.createElement('script');  ap.src=h.heatUrl+'preprocessor.min.js?sid='+m;  ap.defer=true; t.head.appendChild(ap); ['error', 'unhandledrejection'].forEach(function (ty) {     h.addEventListener(ty, function (et) { h.hErrorLogs.push({ type: ty, event: et }); }); });})(window,'https://dashboard.heatmap.com/','heatmap.php',document,5115);</script><meta name="description" content=""><title>test title</title><link rel="icon" href="favicon.ico" type="image/x-icon"><script>
+sessionStorage.setItem("test", true);
+
+const ALLOWED_AFFILIATE_IDS = [];
+
+let nextPageSlug = null;
+
+function handleUrlParams(params) {
+  const specialParams = ["p_dc", "p_tenbucksoff", "p_freeship", "p_freegift"];
+  const allowedDcValues = ["5", "10", "15", "20", "25"];
+  const currentAffId = params.get("affid") || sessionStorage.getItem("affid");
+  const discountsAllowed =
+    ALLOWED_AFFILIATE_IDS.length === 0 ||
+    (currentAffId !== null && ALLOWED_AFFILIATE_IDS.includes(currentAffId));
+  if (!discountsAllowed) {
+    specialParams.forEach((key) => sessionStorage.removeItem(key));
+  }
+  params.forEach((value, key) => {
+    const paramKey = `p_${key}`;
+    if (specialParams.includes(paramKey)) {
+      if (!discountsAllowed) return;
+      if (paramKey === "p_dc" && !allowedDcValues.includes(value)) return;
+      sessionStorage.setItem(paramKey, value);
+    } else {
+      sessionStorage.setItem(key, value);
+    }
+  });
+}
+
+if (localStorage.getItem('sK_r')) {
+  const cr = JSON.parse(localStorage.getItem('sK_r'));
+  const normalizePath = (rawPath) => {
+    if (!rawPath) return '';
+    try {
+      let p = String(rawPath);
+      p = p.split('?')[0].split('#')[0];
+      p = p.replace(/\/+$/, '');
+      p = p.replace(/\/index.html$/, '');
+      p = p.replace(/^\/+/, ''); p = p.replace(/^69ca6977af5a1b3527b7b057-preview\/?/, '');
+      return p;
+    } catch (e) {
+      console.error('Error normalizing path', e);
+      return '';
+    }
+  };
+  const pathname = window.location.pathname;
+  const cp = normalizePath(pathname || '/');
+  let nr = cr.find((r) => r.page === cp);
+  if (nr) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const baseNext = pathname.endsWith("/index.html") ? nr.next + "/index.html" : nr.next || '';
+    const withQuery = urlParams && urlParams.toString()
+      ? baseNext + '?' + urlParams.toString()
+      : baseNext;
+    nextPageSlug = withQuery && !withQuery.startsWith('/') ? '/69ca6977af5a1b3527b7b057-preview/' + withQuery : withQuery;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      MVMT.init('69ca6977af5a1b3527b7b057', 'Home')
+      const ctaButtons = document.querySelectorAll("[data-cta-button]");
+      ctaButtons.forEach((button) => {
+        button.href = nextPageSlug;
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          MVMT.track("CTA_CLICK", {
+            page: "Test home",
+            page_type: "Home",
+            page_url: window.location.href,
+          });
+          window.location.href = nextPageSlug;
+        });
+      });
+    });
+  }
+  
+}
+
+const route = async () => {
+  if (localStorage.getItem('sK_r')) return JSON.parse(localStorage.getItem('sK_r'));
+  const sessionId = MVMT.getSessionId() || localStorage.getItem("mvmt_session_id") || "";
+  const url = 'https://func-ab-test-events-dev-001.azurewebsites.net/api/checkRoute?id=69ca6977af5a1b3527b7b057&v=177876012742215&sessionId='+sessionId;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    const data = await response.json();
+    localStorage.setItem('sK_r', JSON.stringify(data));
+    return data;
+  } catch (error) {
+    console.error('There was a problem with the fetch operation:', error);
+    throw error;
+  }
+}
+const nextPage = async () => {
+  let cr = await route();
+  if (!cr) throw new Error('Route not found');
+  const normalizePath = (rawPath) => {
+    if (!rawPath) return '';
+    try {
+      let p = String(rawPath);
+      p = p.split('?')[0].split('#')[0];
+      p = p.replace(/\/+$/, '');
+      p = p.replace(/\/index.html$/, '');
+      p = p.replace(/^\/+/, ''); p = p.replace(/^69ca6977af5a1b3527b7b057-preview\/?/, '');
+      return p;
+    } catch (e) {
+      console.error('Error normalizing path', e);
+      return '';
+    }
+  };
+  const pathname = window.location.pathname;
+  const cp = normalizePath(pathname || '/');
+  let nr = cr.find((r) => r.page === cp);
+  if (!nr) {
+    try {
+      localStorage.removeItem('sK_r');
+    } catch (e) {
+      // ignore storage errors
+    }
+    cr = await route();
+    if (!cr) return '';
+    nr = cr.find((r) => r.page === cp);
+  }
+  const urlParams = new URLSearchParams(window.location.search);
+  if (!nr) return '';
+  const baseNext = pathname.endsWith("/index.html") ? nr.next + "/index.html" : nr.next || '';
+  const withQuery = urlParams && urlParams.toString()
+    ? baseNext + '?' + urlParams.toString()
+    : baseNext;
+  const absolute = withQuery && !withQuery.startsWith('/') ? '/69ca6977af5a1b3527b7b057-preview/' + withQuery : withQuery;
+  return absolute;
+}
+const urlParams = new URLSearchParams(window.location.search);
+handleUrlParams(urlParams);
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("click", (event) => {
+    const elementClasses = event.target.className;
+    const elementId = event.target.id;
+
+    const windowPosition = window.scrollY;
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const elementPosition = event.clientX;
+    const elementTop = event.clientY;
+
+    MVMT.track("PAGE_CLICK", {
+      page: "Test home",
+      page_type: "Home",
+      page_url: window.location.href,
+      element_classes: elementClasses,
+      element_id: elementId,
+      window_position: windowPosition,
+      window_width: windowWidth,
+      window_height: windowHeight,
+      element_position: elementPosition,
+      element_top: elementTop,
+    });
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  const elementsToHideSelectors = Array.from(params.entries()).reduce((selectors, [key, value]) => {
+      if (value === "n" || value === "none") {
+          selectors.push(`[data-url-param-${key}]`);
+      }
+      return selectors;
+  }, []);
+  if (elementsToHideSelectors.length) {
+      document.querySelectorAll(elementsToHideSelectors.join(",")).forEach(el => el.style.display = "none");
+  }
+  const topBanner = document.querySelector("[data-url-param-colorbanner]");
+  if (topBanner && params.has("colorbanner")) topBanner.style.backgroundColor = params.get("colorbanner") || "red";
+});
+
+const getGlobals = async () => {
+  const response = await fetch("https://stdigitalmvmtdev001.blob.core.windows.net/globals/develop/default");
+  const data = await response.json();
+  return data;
+};
+
+document.addEventListener("DOMContentLoaded", async() => {
+
+  if (nextPageSlug === null || nextPageSlug.length === 0) {
+    nextPageSlug = await nextPage();
+    const ctaButtons = document.querySelectorAll("[data-cta-button]");
+    ctaButtons.forEach((button) => {
+      button.href = nextPageSlug;
+      button.addEventListener("click", (e) => {
+        e.preventDefault();
+        MVMT.track("CTA_CLICK", {
+          page: "Test home",
+          page_type: "Home",
+          page_url: window.location.href,
+        });
+        window.location.href = nextPageSlug;
+      });
+    });
+  }
+    
+  const globals = await getGlobals();
+  const globalAttribute = "data-holder-global"
+  const globalElements = document.querySelectorAll(`[${globalAttribute}]`);
+  if (globalElements) {
+    globalElements.forEach((element) => {
+      const data = globals[element.getAttribute(globalAttribute)];
+      element.innerText = data.label;
+      if (data.type === "url") {
+        element.href = data.src;
+      }
+    })
+  }
+
+  // Track all elements with data-sparqcms-component-id on page view
+  const sparqcmsComponentElements = document.querySelectorAll("[data-sparqcms-component-id]");
+  const componentIds = [];
+  sparqcmsComponentElements.forEach(element => {
+    componentIds.push(element.getAttribute("data-sparqcms-component-id"));
+  });
+  
+  if (componentIds.length > 0) {
+      MVMT.track("PAGE_VIEW_COMPONENTS", {
+      page: "Test home",
+      page_type: "Home",
+      page_url: window.location.href,
+      component_ids: componentIds
+    });
+  }
+});
+  
+  </script>
+<script>
+  const offerName = 'Vi-Shift';
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    'event': 'pageView', 
+    'offer': 'Vi-Shift',
+    'customer_id':sessionStorage.getItem("customerId") || undefined,
+    'page':{
+      'type':'Home',
+      'isReload':performance.getEntriesByType("navigation")[0].type === "reload",
+      'isExclude':false
+    },
+    'experiment':{
+      'id':undefined,
+      'name':undefined,
+      'variation':undefined
+    }
+  });
+</script>
+  <link rel="stylesheet" href="styles/test-home.css" /><style>@layer imported{.red {
+  color: red;
+}}</style></head><body><div><div><div class="c-lc9846 c-oaxxat c-rri4mx cxpk1f6 c7l9c6s c-a4oera c-i9vfpo cga1uq4 c-evftdq c-2bvdny"><span class="c-n92bdn">Blank page, drag'n'drop your components here!</span></div></div></div><script src="https://stdigitalmvmtdev001.blob.core.windows.net/libs/mvmt-latest.develop.js.min.js"></script><script src="scripts/test-home.js"></script><script src="scripts/pageBuilder/page/checkout/checkout.js"></script>
+<script type="application/json" id="page-config">
+{
+  "campaignId": "39",
+  "pageType": "Home",
+  "funnelId": "69ca6977af5a1b3527b7b057",
+  "locale": "US"
+}
+</script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(() => {
+        const cookiesBanner = document.querySelector("[data-cookie-banner]");
+        const cookieAcceptButton = document.querySelector("[data-cookie-accept-button]");
+        const cookieRejectButton = document.querySelector("[data-cookie-reject-button]");
+
+        if (!(cookiesBanner && cookieAcceptButton && cookieRejectButton)) return;
+
+        const cookieDependentScripts = [];
+        const cookiesAnswer = sessionStorage.getItem("cookiesAnswer");
+
+        if (cookiesAnswer === "accepted" || cookiesAnswer === "rejected") {
+          cookiesBanner.style.display = "none";
+          injectTrackingScripts();
+        } else {
+          cookiesBanner.style.display = "flex";
+        }
+
+        cookieAcceptButton.addEventListener("click", () => {
+          sessionStorage.setItem("cookiesAnswer", "accepted");
+          cookiesBanner.style.display = "none";
+          if (cookieDependentScripts.length > 0) injectTrackingScripts()
+        });
+
+        cookieRejectButton.addEventListener("click", () => {
+          sessionStorage.setItem("cookiesAnswer", "rejected");
+          cookiesBanner.style.display = "none";
+        });
+
+        function injectTrackingScripts() {
+          cookieDependentScripts.forEach((script) => {
+            if (script.src) {
+              const scriptElement = document.createElement("script");
+              scriptElement.src = script.src;
+              scriptElement.async = true;
+              document.head.appendChild(scriptElement);
+            } else if (script.text) {
+              const scriptElement = document.createElement("script")
+              scriptElement.innerHTML = script.text;
+              document.head.appendChild(scriptElement);
+            }
+          })
+        }
+      }, 500);
+    });
+  </script>
+  </body></html>
